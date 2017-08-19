@@ -5,6 +5,9 @@
 #include "ui/pixel_ops.h"
 #include "qemu\log.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #define TYPE_S3C2416_LCD "s3c2416-lcd"
 #define S3C2416_LCD(obj) OBJECT_CHECK(S3C2416_lcd_state, (obj), TYPE_S3C2416_LCD)
 
@@ -24,19 +27,17 @@ typedef struct {
     uint32_t VIDW00ADD0B[2];
     uint32_t VIDW00ADD1B[2];
 
+    uint32_t cols;
+    uint32_t rows;
+
     int invalidate;
-    int first_row;
-    int last_row;
     qemu_irq irq;
 } S3C2416_lcd_state;
 
 static void S3C2416_lcd_draw_line(void *opaque, uint8_t *d, const uint8_t *src, int width, int deststep)
 {
-    for (int i = 0; i < width; i ++) {
-        d[i] = 0;
-        d[i + 1] = src[i];
-        d[i + 2] = src[i + 1];
-        d[i + 3] = src[i + 2];
+    for (int i = 0; i < width * deststep; i++) {
+        d[i] = src[i];
     }
 }
 
@@ -44,32 +45,40 @@ static void S3C2416_lcd_draw_line(void *opaque, uint8_t *d, const uint8_t *src, 
 static void S3C2416_lcd_update_display(void *opaque)
 {
     S3C2416_lcd_state *s = (S3C2416_lcd_state*)opaque;
-    SysBusDevice *sbd;
+    SysBusDevice *sbd; 
     DisplaySurface *surface = qemu_console_surface(s->con);
     //drawfn* fntable;
     //drawfn fn;
     //int dest_width;
     //int src_width;
     //int bpp_offset;
-    //int first;
-    //int last;
+    int first;
+    int last;
 
     sbd = SYS_BUS_DEVICE(s);
 
-
-
     // LCD is disabled;
     if ((s->VIDCON[0] & 3) != 3) {
-        //printf("LCD disabled!\n");
         return;
     }
+    int currentBuf = (s->WINCON[0] >> 23) & 0x1;
 
-    framebuffer_update_memory_section(&s->fbsection,
-        sysbus_address_space(sbd),
-        s->VIDW00ADD0B[0],
-        240, 960);
 
-    framebuffer_update_display(surface, &s->fbsection, 320, 240, 960, 4 * 320, 0, s->invalidate, S3C2416_lcd_draw_line, NULL, &s->first_row, &s->last_row);
+    first = 0;
+
+    if (s->invalidate) {
+        framebuffer_update_memory_section(&s->fbsection,
+            sysbus_address_space(sbd),
+            s->VIDW00ADD0B[currentBuf],
+            240, 320 * 4);
+    }
+
+    framebuffer_update_display(surface, &s->fbsection, 320, 240, 4 * 320, 4 * 320, 4, s->invalidate, S3C2416_lcd_draw_line, NULL, &first, &last);
+
+    if (first >= 0) {
+        dpy_gfx_update(s->con, 0, first, s->cols, last - first + 1);
+    }
+    s->invalidate = 0;
 }
 
 static void S3C2416_lcd_write(void *opaque, hwaddr offset,
@@ -78,7 +87,7 @@ static void S3C2416_lcd_write(void *opaque, hwaddr offset,
     S3C2416_lcd_state *s = (S3C2416_lcd_state*)opaque;
 
     //printf("S3C2416_lcd: register write 0x%llx, val: 0x%llx\n", offset, val);
-
+    s->invalidate = 1;
 
     switch (offset)
     {
@@ -107,10 +116,10 @@ static void S3C2416_lcd_write(void *opaque, hwaddr offset,
         s->VIDW00ADD0B[0] = val;
         break;
     case 0x68:
-        s->VIDW00ADD0B[0] = val;
+        s->VIDW00ADD0B[1] = val;
         break;
     case 0x7c:
-        s->VIDW00ADD1B[1] = val;
+        s->VIDW00ADD1B[0] = val;
         break;
     case 0x80:
         s->VIDW00ADD1B[1] = val;
@@ -205,10 +214,10 @@ static uint64_t S3C2416_lcd_read(void *opaque, hwaddr offset,
         val = s->VIDW00ADD0B[0];
         break;
     case 0x68:
-        val = s->VIDW00ADD0B[0];
+        val = s->VIDW00ADD0B[1];
         break;
     case 0x7c:
-        val = s->VIDW00ADD1B[1];
+        val = s->VIDW00ADD1B[0];
         break;
     case 0x80:
         val = s->VIDW00ADD1B[1];
@@ -225,6 +234,15 @@ static uint64_t S3C2416_lcd_read(void *opaque, hwaddr offset,
     return val;
 }
 
+static void s3c2416_lcd_invalidate_display(void * opaque)
+{
+    S3C2416_lcd_state *s = (S3C2416_lcd_state *)opaque;
+    s->invalidate = 1;
+    if ((s->VIDCON[0] & 3) == 3) {
+        qemu_console_resize(s->con, s->cols, s->rows);
+    }
+}
+
 static const MemoryRegionOps S3C2416_lcd_ops = {
     .read = S3C2416_lcd_read,
     .write = S3C2416_lcd_write,
@@ -232,7 +250,7 @@ static const MemoryRegionOps S3C2416_lcd_ops = {
 };
 
 static const GraphicHwOps S3C2416_lcd_gfx_ops = {
-    //.invalidate = pl110_invalidate_display,
+    .invalidate = s3c2416_lcd_invalidate_display,
     .gfx_update = S3C2416_lcd_update_display,
 };
 
@@ -246,6 +264,7 @@ static void S3C2416_lcd_realize(DeviceState *dev, Error **errp)
     sysbus_init_irq(sbd, &s->irq);
     //qdev_init_gpio_in(dev, pl110_mux_ctrl_set, 1);
     s->con = graphic_console_init(dev, 0, &S3C2416_lcd_gfx_ops, s);
+    qemu_console_resize(s->con, s->cols, s->rows);
 }
 
 static void S3C2416_lcd_class_init(ObjectClass *klass, void *data)
@@ -258,13 +277,15 @@ static void S3C2416_lcd_class_init(ObjectClass *klass, void *data)
 
 static void S3C2416_lcd_init(Object *obj)
 {
-    //S3C2416_lcd_state *s = S3C2416_LCD(obj);
+    S3C2416_lcd_state *s = S3C2416_LCD(obj);
 
     //s->VIDCON[0] = 0x5270;
     //s->VIDTCON[0] = 0x110300;
     //s->VIDTCON[1] = 0x401100;
     //s->VIDTCON[2] = 0x7793F;
     //s->VIDCON[1] = 0x8080;
+    s->cols = 320;
+    s->rows = 240;
 }
 static TypeInfo S3C2416_lcd_info =
 {

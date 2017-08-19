@@ -222,7 +222,7 @@ static void prime_nand_init(Object *obj)
         exit(1);
     }
     s->nand = nand_init(nand ? blk_by_legacy_dinfo(nand) : NULL,
-       0xEC, 0xDA);
+       0xAD/*0xEC*/, 0xDA);
 
 
     memory_region_init_io(&s->iomem, obj, &prime_nand_ops, s, "prime", 0x40);
@@ -501,6 +501,8 @@ typedef struct {
     uint32_t UFSTAT;
     uint32_t UMSTAT;
     uint8_t URXH;
+    uint32_t UBRDIV;
+    uint32_t UDIVSLOT;
 
     uint8_t FIFO[64];
     qemu_irq irq;
@@ -556,12 +558,16 @@ static void S3C2416_uart_write(void *opaque, hwaddr offset,
     case 0x24:
         qemu_log_mask(LOG_GUEST_ERROR, "S3C2416_uart: Attempted write to read only register!\n");
         break;
-    /* UBRDIV */
-    /* UDIVSLOT */
+        /* UBRDIV */
     case 0x28:
-    case 0x2C:
-        qemu_log_mask(LOG_UNIMP, "S3C2416_uart: Attempted write to unimplemented register!\n");
+        s->UBRDIV = val;
         break;
+        /* UDIVSLOT */
+    case 0x2C:
+        s->UDIVSLOT = val;
+        break;
+        //qemu_log_mask(LOG_UNIMP, "S3C2416_uart: Attempted write to unimplemented register!\n");
+        //break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "S3C2416_uart: Attempted write to invalid register!\n");
         break;
@@ -602,15 +608,15 @@ static uint64_t S3C2416_uart_read(void *opaque, hwaddr offset,
         /* URXH    | ReadOnly */
     case 0x24:
         return s->URXH;
+        /* UBRDIV */
+    case 0x28:
+        return s->UBRDIV;
+        /* UDIVSLOT */
+    case 0x2C:
+        return s->UDIVSLOT;
         /* UTXH | WriteOnly*/
     case 0x20:
         qemu_log_mask(LOG_GUEST_ERROR, "S3C2416_uart: Attempted to read write only register!\n");
-        break;
-    /* UBRDIV */
-    /* UDIVSLOT */
-    case 0x28:
-    case 0x2C:
-        qemu_log_mask(LOG_UNIMP, "S3C2416_uart: Attempted read of unimplemented register!\n");
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "S3C2416_uart: Attempted read of invalid register!\n");
@@ -755,7 +761,7 @@ static void prime_init(MachineState *machine)
     // Create UART
     qemu_irq uart_irq = qdev_get_gpio_in(dev, (28 << 1) | 0);
     qemu_irq lcd_irq = qdev_get_gpio_in(dev, (16 << 1) | 0);
-    
+
     dev = qdev_create(NULL, TYPE_S3C2416_UART);
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", serial_hds[0]);
