@@ -14,7 +14,7 @@
 #include "qemu/log.h"
 #include "chardev/char-fe.h"
 #include "sysemu/sysemu.h"
-
+#include "sysemu/block-backend.h"
 
 
 #include <stdio.h>
@@ -215,14 +215,8 @@ static void prime_nand_init(Object *obj)
 
     /* FIXME use a qdev drive property instead of drive_get() */
     nand = drive_get(IF_MTD, 0, 0);
-    if (!nand) {
-        fprintf(stderr, "A flash image must be given with the "
-            "'blockmtd' parameter\n");
-        exit(1);
-    }
     s->nand = nand_init(nand ? blk_by_legacy_dinfo(nand) : NULL,
        0xAD/*0xEC*/, 0xDA);
-
 
     memory_region_init_io(&s->iomem, obj, &prime_nand_ops, s, "prime", 0x40);
     sysbus_init_mmio(dev, &s->iomem);
@@ -252,22 +246,14 @@ static void prime_init(MachineState *machine)
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     //MemoryRegion *boot = g_new(MemoryRegion, 1);
-    MemoryRegion *steppingStone = g_new(MemoryRegion, 1);
+    MemoryRegion *sram = g_new(MemoryRegion, 1);
     //MemoryRegion *gpio = g_new(MemoryRegion, 1);
     //MemoryRegion *dram = g_new(MemoryRegion, 1);
 
-    FILE *f = fopen("D:/BXCBOOT0.BIN", "rb");
-    fseek(f, 0, SEEK_END);
-    long fsize = ftell(f);
-    fseek(f, 0, SEEK_SET);  //same as rewind(f);
-
-    char *mem = malloc(fsize);
-    assert(fread(mem, fsize, 1, f) == fsize);
-
-    printf("Read file:\n    + size: %ld\n", fsize);
-
-    memory_region_init_ram_ptr(steppingStone, NULL, "prime.steppingstone", fsize, mem);
-    memory_region_add_subregion(address_space_mem, 0x00000000, steppingStone);
+    uint8_t *sram_ptr = g_new0(uint8_t, 0x10000);
+    assert(sram_ptr);
+    memory_region_init_ram_ptr(sram, NULL, "prime.sram", 0x00010000, sram_ptr);
+    memory_region_add_subregion(address_space_mem, 0x00000000, sram);
 
     memory_region_init_ram(ram, NULL, "prime.ram", 0x02000000, &error_fatal);
     memory_region_add_subregion(address_space_mem, 0x30000000, ram);
@@ -300,7 +286,7 @@ static void prime_init(MachineState *machine)
     qemu_irq uart_irq = qdev_get_gpio_in(dev, (28 << 1) | 0);
     qemu_irq lcd_irq = qdev_get_gpio_in(dev, (16 << 1) | 0);
 
-    (void*) exynos4210_uart_create(0x50000000, 32, 1, NULL, uart_irq);
+    (void*) exynos4210_uart_create(0x50000000, 32, 0, NULL, uart_irq);
 
     sysbus_create_simple("s3c2416-lcd", 0x4C800000, lcd_irq);
     
@@ -323,6 +309,20 @@ static void prime_init(MachineState *machine)
     dev = qdev_create(NULL, "s3c2416-wtcon");
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x53000000);
+
+    // Load boot code into SRAM
+    /* FIXME use a qdev drive property instead of drive_get() */
+    DriveInfo *nand = drive_get(IF_MTD, 0, 0);
+    if (nand) {
+        int ret = blk_pread(blk_by_legacy_dinfo(nand), 0x0,
+                            sram_ptr, 0x2000);
+        assert(ret >= 0);
+    }
+    else {
+        fprintf(stderr, "A flash image must be given with the "
+            "'-mtdblock' parameter\n");
+        exit(1);
+    }
 }
 
 static void prime_class_init(ObjectClass *oc, void *data)
