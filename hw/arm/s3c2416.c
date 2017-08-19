@@ -5,6 +5,7 @@
 #include "cpu.h"
 #include "hw/boards.h"
 #include "hw/arm/arm.h"
+#include "hw/arm/exynos4210.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "exec/memory.h"
@@ -25,9 +26,6 @@
 
 #define TYPE_S3C2416_INTC "S3C2416-intc"
 #define S3C2416_INTC(obj) OBJECT_CHECK(S3C2416_intc_state, (obj), TYPE_S3C2416_INTC)
-
-#define TYPE_S3C2416_UART "S3C2416-uart"
-#define S3C2416_UART(obj) OBJECT_CHECK(S3C2416_uart_state, (obj), TYPE_S3C2416_UART)
 
 #define NFCE0(s) (s->NFCONT & (1u << 1))
 #define NFCONF_OFF 0x0
@@ -491,211 +489,6 @@ static const TypeInfo S3C2416_intc =
     //.class_init = vpb_sic_class_init,
 };
 
-
-typedef struct {
-    SysBusDevice parent_obj;
-
-    MemoryRegion memio;
-    uint32_t ULCON;
-    uint32_t UCON;
-    uint32_t UFCON;
-    uint32_t UMCON;
-    uint32_t UTRSTAT;
-    uint32_t UERSTAT; // change?
-    uint32_t UFSTAT;
-    uint32_t UMSTAT;
-    uint8_t URXH;
-    uint32_t UBRDIV;
-    uint32_t UDIVSLOT;
-
-    uint8_t FIFO[64];
-    qemu_irq irq;
-    CharBackend chr;
-} S3C2416_uart_state;
-
-static void S3C2416_uart_update(S3C2416_uart_state* s)
-{
-    if (s->UTRSTAT & (1u << 2))
-        qemu_set_irq(s->irq, 1 | (INT_SUBINT_TXD0 << 1));
-}
-
-static void S3C2416_uart_write(void *opaque, hwaddr offset,
-    uint64_t val, unsigned size)
-{
-    S3C2416_uart_state *s = (S3C2416_uart_state*)opaque;
-    //printf("Write to UART register: 0x%llx, val: 0x%llx\n", offset + 0x50000000, val);
-    uint8_t b;
-    switch (offset)
-    {
-    /* ULCON */
-    case 0x0:
-        s->ULCON = val;
-        break;
-    /* UCON */
-    case 0x4:
-        s->UCON = val;
-        break;
-    /* UFCON */
-    case 0x8:
-        s->UFCON = val;
-        break;
-    /* UMCON */
-    case 0xC:
-        s->UMCON = val;
-        break;
-    /* UTXH */
-    case 0x20:
-        b = val;
-        s->UTRSTAT |= 1u << 2;
-        qemu_chr_fe_write_all(&s->chr, &b, 1);
-        S3C2416_uart_update(s);
-        break;
-    /* UTRSTAT | ReadOnly */
-    /* UERSTAT | ReadOnly */
-    /* UFSTAT  | ReadOnly */
-    /* UMSTAT  | ReadOnly */
-    /* URXH    | ReadOnly */
-    case 0x10:
-    case 0x14:
-    case 0x18:
-    case 0x1C:
-    case 0x24:
-        qemu_log_mask(LOG_GUEST_ERROR, "S3C2416_uart: Attempted write to read only register!\n");
-        break;
-        /* UBRDIV */
-    case 0x28:
-        s->UBRDIV = val;
-        break;
-        /* UDIVSLOT */
-    case 0x2C:
-        s->UDIVSLOT = val;
-        break;
-        //qemu_log_mask(LOG_UNIMP, "S3C2416_uart: Attempted write to unimplemented register!\n");
-        //break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
-                      __func__, offset);
-        break;
-    }
-}
-
-static uint64_t S3C2416_uart_read(void *opaque, hwaddr offset,
-    unsigned size)
-{
-    S3C2416_uart_state *s = (S3C2416_uart_state*)opaque;
-
-    switch (offset)
-    {
-        /* ULCON */
-    case 0x0:
-        return s->ULCON;
-        /* UCON */
-    case 0x4:
-        return s->UCON;
-        /* UFCON */
-    case 0x8:
-        return s->UFCON;
-        /* UMCON */
-    case 0xC:
-        return s->UMCON;
-        /* UTRSTAT | ReadOnly */
-    case 0x10:
-        return s->UTRSTAT;
-        /* UERSTAT | ReadOnly */
-    case 0x14:
-        return s->UERSTAT;
-        /* UFSTAT  | ReadOnly */
-    case 0x18:
-        return s->UFSTAT;
-        /* UMSTAT  | ReadOnly */
-    case 0x1C:
-        return s->UMSTAT;
-        /* URXH    | ReadOnly */
-    case 0x24:
-        return s->URXH;
-        /* UBRDIV */
-    case 0x28:
-        return s->UBRDIV;
-        /* UDIVSLOT */
-    case 0x2C:
-        return s->UDIVSLOT;
-        /* UTXH | WriteOnly*/
-    case 0x20:
-        qemu_log_mask(LOG_GUEST_ERROR, "S3C2416_uart: Attempted to read write only register!\n");
-        break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
-                      __func__, offset);
-        break;
-    }
-
-    return 0x0;
-}
-
-static int S3C2416_uart_can_recieve(void* opaqe)
-{
-    return 0;
-}
-
-static void S3C2416_uart_recieve(void *opaque, const uint8_t *buf, int size)
-{
-
-}
-
-static void S3C2416_uart_event(void *opaque, int event)
-{
-    //if (event == CHR_EVENT_BREAK)
-    //    pl011_put_fifo(opaque, 0x400);
-}
-
-static MemoryRegionOps S3C2416_uart_ops =
-{
-    .read = S3C2416_uart_read,
-    .write = S3C2416_uart_write,
-    .endianness = DEVICE_NATIVE_ENDIAN
-};
-
-static Property S3C2416_uart_properties[] = {
-    DEFINE_PROP_CHR("chardev", S3C2416_uart_state, chr),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void S3C2416_uart_realize(DeviceState *dev, Error **errp)
-{
-    S3C2416_uart_state *s = S3C2416_UART(dev);
-    qemu_chr_fe_set_handlers(&s->chr, S3C2416_uart_can_recieve, S3C2416_uart_recieve,
-        S3C2416_uart_event, NULL, s, NULL, true);
-}
-
-static void S3C2416_uart_class_init(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = S3C2416_uart_realize;
-    dc->props = S3C2416_uart_properties;
-}
-
-static void S3C2416_uart_init(Object *obj)
-{
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    S3C2416_uart_state *s = S3C2416_UART(obj);
-
-    memory_region_init_io(&s->memio, OBJECT(s), &S3C2416_uart_ops, s, "S3C2416_uart", 0x00001000);
-    sysbus_init_mmio(sbd, &s->memio);
-    sysbus_init_irq(sbd, &s->irq);
-
-    s->UTRSTAT = 0x6;
-}
-
-static const TypeInfo S3C2416_uart =
-{
-    .name = TYPE_S3C2416_UART,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(S3C2416_uart_state),
-    .instance_init = S3C2416_uart_init,
-    .class_init = S3C2416_uart_class_init
-};
-
 static void prime_init(MachineState *machine)
 {
     ObjectClass *cpu_oc;
@@ -768,12 +561,7 @@ static void prime_init(MachineState *machine)
     qemu_irq uart_irq = qdev_get_gpio_in(dev, (28 << 1) | 0);
     qemu_irq lcd_irq = qdev_get_gpio_in(dev, (16 << 1) | 0);
 
-    dev = qdev_create(NULL, TYPE_S3C2416_UART);
-    SysBusDevice *s = SYS_BUS_DEVICE(dev);
-    qdev_prop_set_chr(dev, "chardev", serial_hds[0]);
-    qdev_init_nofail(dev);
-    sysbus_mmio_map(s, 0, 0x50000000);
-    sysbus_connect_irq(s, 0, uart_irq);
+    (void*) exynos4210_uart_create(0x50000000, 32, 1, NULL, uart_irq);
 
     sysbus_create_simple("s3c2416-lcd", 0x4C800000, lcd_irq);
     
@@ -824,7 +612,6 @@ static void prime_machine_init(void)
     type_register_static(&prime_type);
     type_register_static(&prime_nand_info);
     type_register_static(&S3C2416_intc);
-    type_register_static(&S3C2416_uart);
 }
 
 type_init(prime_machine_init);
