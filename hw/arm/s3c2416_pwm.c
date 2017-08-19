@@ -125,8 +125,10 @@ static uint64_t s3c2416_pwm_read(void *opaque, hwaddr offset,
         val = s->TCNTO4;
         break;
 
-        default:
-        qemu_log_mask(LOG_GUEST_ERROR, "s3c2416_pwm: Attempted write to invalid register! off: 0x%llx\n", offset);
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+                      __func__, offset);
+        val = 0;
         break;
     }
     
@@ -201,7 +203,8 @@ static void s3c2416_pwm_write(void *opaque, hwaddr offset,
         break;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "s3c2416_pwm: Attempted write to invalid register! off: 0x%llx\n", offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+                      __func__, offset);
         break;
     }
 };

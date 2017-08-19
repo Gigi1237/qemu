@@ -364,7 +364,9 @@ static uint64_t s3c2416_gpio_read(void *opaque, hwaddr offset,
         break;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "s3c2416_gpio: Attempted write to invalid register! off: 0x%llx\n", offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+                      __func__, offset);
+        val = 0;
         break;
     }
 
@@ -644,7 +646,8 @@ static void s3c2416_gpio_write(void *opaque, hwaddr offset,
         break;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "s3c2416_gpio: Attempted write to invalid register! off: 0x%llx\n", offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+                      __func__, offset);
         break;
     }
 };

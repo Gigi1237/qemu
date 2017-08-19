@@ -64,13 +64,13 @@ typedef struct
 } PrimeNANDState;
 
 static uint64_t prime_read(void *opaque,
-    hwaddr addr,
+    hwaddr offset,
     unsigned size)
 {
     PrimeNANDState *s = (PrimeNANDState*)opaque;
 
     uint64_t ret;
-    switch (addr) {
+    switch (offset) {
     case NFCMMD_OFF:
         return s->NFCMMD;
     case NFCONF_OFF:
@@ -124,7 +124,8 @@ static uint64_t prime_read(void *opaque,
         }
     default:
         /* The rest read-back what was written to them */
-        qemu_log_mask(LOG_UNIMP, "S3C2416_nand: Unimplemented register read! off: 0x%llx\n", addr);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+                      __func__, offset);
         break;
     }
 
@@ -132,7 +133,7 @@ static uint64_t prime_read(void *opaque,
 }
 
 static void prime_write(void *opaque,
-    hwaddr addr,
+    hwaddr offset,
     uint64_t val,
     unsigned size)
 {
@@ -142,7 +143,7 @@ static void prime_write(void *opaque,
     //    return; /* Ignore the write, the nand is not enabled */
     //}
 
-    switch (addr) {
+    switch (offset) {
     case NFCONF_OFF:
         s->NFCONF = val;
         if (s->nand != NULL)
@@ -192,7 +193,8 @@ static void prime_write(void *opaque,
         s->NFSTAT |= (val & 0x70);
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "S3C2416_nand: Unimplemented register write! off: 0x%llx val: 0x%llx\n", addr, val);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+                      __func__, offset);
         /* Do nothing because the other registers are read only */
         break;
     }
@@ -397,7 +399,8 @@ static uint64_t S3C2416_intc_read(void *opaque, hwaddr offset,
         qemu_log_mask(LOG_UNIMP, "S3C2416_intc: \"PRIORITY_MODE\" and \"PRIORITY_UPDATE\" unimplemented!\n");
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "S3C2416_intc: invalid register read! off: %llX\n", offset + 0x4C000000);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+                      __func__, offset);
         break;
     }
     return 0;
@@ -453,7 +456,8 @@ static void S3C2416_intc_write(void *opaque, hwaddr offset,
         qemu_log_mask(LOG_UNIMP, "S3C2416_intc: \"PRIORITY_MODE\" and \"PRIORITY_UPDATE\" unimplemented!");
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "S3C2416_intc: invalid register write! off: %llX | val: %llX\n", offset + 0x4C000000, val);  
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+                      __func__, offset);
     }
 }
 
@@ -569,7 +573,8 @@ static void S3C2416_uart_write(void *opaque, hwaddr offset,
         //qemu_log_mask(LOG_UNIMP, "S3C2416_uart: Attempted write to unimplemented register!\n");
         //break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "S3C2416_uart: Attempted write to invalid register!\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+                      __func__, offset);
         break;
     }
 }
@@ -619,7 +624,8 @@ static uint64_t S3C2416_uart_read(void *opaque, hwaddr offset,
         qemu_log_mask(LOG_GUEST_ERROR, "S3C2416_uart: Attempted to read write only register!\n");
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "S3C2416_uart: Attempted read of invalid register!\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+                      __func__, offset);
         break;
     }
 
@@ -724,7 +730,7 @@ static void prime_init(MachineState *machine)
     fseek(f, 0, SEEK_SET);  //same as rewind(f);
 
     char *mem = malloc(fsize);
-    fread(mem, fsize, 1, f);
+    assert(fread(mem, fsize, 1, f) == fsize);
 
     printf("Read file:\n    + size: %ld\n", fsize);
 

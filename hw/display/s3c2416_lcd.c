@@ -3,7 +3,7 @@
 #include "ui/console.h"
 #include "framebuffer.h"
 #include "ui/pixel_ops.h"
-#include "qemu\log.h"
+#include "qemu/log.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -126,7 +126,8 @@ static void S3C2416_lcd_write(void *opaque, hwaddr offset,
         break;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "S3C2416_lcd: Attempted write to invalid register! off: 0x%llx\n", offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+                      __func__, offset);
         break;
     }
 
@@ -223,7 +224,9 @@ static uint64_t S3C2416_lcd_read(void *opaque, hwaddr offset,
         val = s->VIDW00ADD1B[1];
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "S3C2416_lcd: Attempted write to invalid register! off: 0x%llx\n", offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+                      __func__, offset);
+        val = 0;
         break;
     }
 
