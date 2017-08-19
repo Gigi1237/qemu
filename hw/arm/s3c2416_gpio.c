@@ -4,6 +4,10 @@
 #include "qemu/log.h"
 #include "hw/sysbus.h"
 
+#include "ui/console.h"
+#include "ui/input.h"
+
+
 #define TYPE_S3C2416_GPIO "s3c2416-gpio"
 #define S3C2416_GPIO(obj) OBJECT_CHECK(s3c2416_gpio_state, (obj), TYPE_S3C2416_GPIO)
 
@@ -645,6 +649,55 @@ static void s3c2416_gpio_write(void *opaque, hwaddr offset,
     }
 };
 
+static void s3c2416_gpio_keyboard_event(void *opaque, int keycode)
+{
+    int rel;
+    s3c2416_gpio_state* s = (s3c2416_gpio_state*)opaque;
+
+    rel = (keycode & 0x80) ? 1 : 0; /* key release from qemu */
+    keycode &= ~(0x80); /* strip qemu key release bit */
+
+    if (keycode  == 80)
+    {
+        if (rel)
+        {
+            s->GPDDAT &= ~(1 << 5);
+            s->GPGDAT &= ~(1 << 4);
+        }
+        else
+        {
+            s->GPDDAT |= (1 << 5);
+            s->GPGDAT |= (1 << 4);
+        }
+    }
+    else if (keycode == 72)
+    {
+        if (rel)
+        {
+            s->GPDDAT &= ~(1 << 4);
+            s->GPGDAT &= ~(1 << 5);
+        }
+        else
+        {
+            s->GPDDAT |= (1 << 4);
+            s->GPGDAT |= (1 << 5);
+        }
+    }
+    else if (keycode == 28)
+    {
+        if (rel)
+        {
+            s->GPDDAT &= ~(1 << 0);
+            s->GPGDAT &= ~(1 << 7);
+        }
+        else
+        {
+            s->GPDDAT |= (1 << 0);
+            s->GPGDAT |= (1 << 7);
+        }
+    }
+};
+
 
 static const MemoryRegionOps s3c2416_gpio_ops = {
     .read = s3c2416_gpio_read,
@@ -717,6 +770,8 @@ static void s3c2416_gpio_init(Object *obj)
     s->DSC3 = 0x2AA;
     s->PDDMCON = 0x411540;
     s->PDSMCON = 0x5451500;
+
+    qemu_add_kbd_event_handler(s3c2416_gpio_keyboard_event, s);
 };
 
 static const TypeInfo s3c2416_gpio_type = {
