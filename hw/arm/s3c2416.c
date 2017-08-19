@@ -19,6 +19,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static struct arm_boot_info hp_prime_board_binfo = {
+    .board_id = -1, /* device-tree-only board */
+    .nb_cpus = 1,
+};
 
 static void prime_init(MachineState *machine)
 {
@@ -101,11 +105,19 @@ static void prime_init(MachineState *machine)
                             sram_ptr, 0x2000);
         assert(ret >= 0);
     }
-    else {
-        fprintf(stderr, "A flash image must be given with the "
-            "'-mtdblock' parameter\n");
+    else if (!machine->kernel_filename) {
+        fprintf(stderr, "No NAND image given with '-mtdblock' and no ELF file "
+                "specified with '-kernel', aborting.\n");
         exit(1);
     }
+
+    // Load ELF kernel, if provided
+    hp_prime_board_binfo.kernel_filename = machine->kernel_filename;
+    hp_prime_board_binfo.initrd_filename = machine->initrd_filename;
+    hp_prime_board_binfo.kernel_cmdline = machine->kernel_cmdline;
+    hp_prime_board_binfo.ram_size = 32*1024*1024;
+
+    arm_load_kernel(ARM_CPU(first_cpu), &hp_prime_board_binfo);
 }
 
 static void prime_class_init(ObjectClass *oc, void *data)
