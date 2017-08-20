@@ -666,9 +666,9 @@ static void s3c2416_gpio_write(void *opaque, hwaddr offset,
     }
 };
 
-//#define SDL_FIX
+//#define GTK_FIX
 
-#ifdef SDL_FIX
+#ifdef GTK_FIX
 #define KP(code, val)
 #else
 #define KP(code, val) [code] = val,
@@ -735,15 +735,15 @@ static uint64_t hp_prime_keymap[Q_KEY_CODE__MAX] = {
     [Q_KEY_CODE_F1]             = 0x2000000000000000, // HELP
     [Q_KEY_CODE_Z]              = 0x4000000000000000, KP(Q_KEY_CODE_KP_2, 0x4000000000000000)
 
-#ifdef SDL_FIX
+#ifdef GTK_FIX
     [Q_KEY_CODE_KP_6]           = 0x8000,             // RIGHT
     [Q_KEY_CODE_KP_8]           = 0x2000000000,       // UP
     [Q_KEY_CODE_KP_2]           = 0x100000000000,     // DOWN
     [Q_KEY_CODE_KP_4]           = 0x0200000000000000, // LEFT
 
-#endif // SDL_FIX
+#endif // GTK_FIX
 } ;
-#undef SDL_FIX
+#undef GTK_FIX
 
 static void hp_prime_keyboard_event(DeviceState *dev, QemuConsole *src,
                                InputEvent *evt)
@@ -754,9 +754,6 @@ static void hp_prime_keyboard_event(DeviceState *dev, QemuConsole *src,
 
     assert(evt->type == INPUT_EVENT_KIND_KEY);
     qcode = qemu_input_key_value_to_qcode(key->key);
-
-    printf("qcode: %i\n", qcode); // 89 83
-    printf("qcode down: %i\n", Q_KEY_CODE_A);
 
     if (qcode >= Q_KEY_CODE__MAX)
         return;
