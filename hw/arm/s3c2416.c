@@ -72,6 +72,8 @@ static void prime_init(MachineState *machine)
     // Create UART
     qemu_irq uart_irq = qdev_get_gpio_in(dev, (28 << 1) | 0);
     qemu_irq lcd_irq = qdev_get_gpio_in(dev, (16 << 1) | 0);
+    qemu_irq rtc_irq = qdev_get_gpio_in(dev, (30 << 1) | 0);
+    qemu_irq tick_irq = qdev_get_gpio_in(dev, (8 << 1) | 0);
 
     (void*) exynos4210_uart_create(0x50000000, 32, 0, NULL, uart_irq);
 
@@ -96,6 +98,9 @@ static void prime_init(MachineState *machine)
     dev = qdev_create(NULL, "s3c2416-wtcon");
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x53000000);
+
+    /* RTC */
+    sysbus_create_varargs("exynos4210.rtc", 0x57000000, rtc_irq, tick_irq, NULL);
 
     // Load boot code into SRAM
     /* FIXME use a qdev drive property instead of drive_get() */
