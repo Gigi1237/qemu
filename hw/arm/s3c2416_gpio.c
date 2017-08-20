@@ -72,14 +72,26 @@ typedef struct {
     uint32_t DSC3;
     uint32_t PDDMCON;
     uint32_t PDSMCON;
+
+    uint64_t keyboard;
 } s3c2416_gpio_state;
 
+static void s3c2416_gpio_update_keyboard(s3c2416_gpio_state *s) {
+    s->GPGDAT = 0;
+    for (int i = 0; i < 8; i++) {
+        if (s->GPDDAT & (1 << i)) {
+            s->GPGDAT |= s->keyboard >> (8*i);
+        }
+    }
+}
 
 static uint64_t s3c2416_gpio_read(void *opaque, hwaddr offset,
     unsigned size)
 {
     s3c2416_gpio_state *s = (s3c2416_gpio_state*)opaque;
     uint32_t val;
+
+    s3c2416_gpio_update_keyboard(s);
 
     switch (offset)
     {
@@ -652,62 +664,98 @@ static void s3c2416_gpio_write(void *opaque, hwaddr offset,
     }
 };
 
-static void s3c2416_gpio_keyboard_event(void *opaque, int keycode)
+static uint64_t hp_prime_keymap[Q_KEY_CODE__MAX] = {
+    [Q_KEY_CODE_END] = 0x0101010101010101, // ON
+
+    [Q_KEY_CODE_P]              = 0x02,
+    [Q_KEY_CODE_DELETE]         = 0x04,
+    [Q_KEY_CODE_M]              = 0x08,
+    [Q_KEY_CODE_F6]             = 0x10, // NUM
+    [Q_KEY_CODE_S]              = 0x20, [Q_KEY_CODE_KP_9] = 0x20,
+    [Q_KEY_CODE_O]              = 0x40,
+    [Q_KEY_CODE_RET]            = 0x80, [Q_KEY_CODE_KP_ENTER] = 0x80,
+
+    [Q_KEY_CODE_0]              = 0x0200, [Q_KEY_CODE_KP_0] = 0x0200,
+    [Q_KEY_CODE_D]              = 0x0400,
+    [Q_KEY_CODE_L]              = 0x0800,
+    [Q_KEY_CODE_F5]             = 0x1000, // PLOT
+    [Q_KEY_CODE_F8]             = 0x2000, // CAS
+    [Q_KEY_CODE_R]              = 0x4000, [Q_KEY_CODE_KP_8] = 0x4000,
+    [Q_KEY_CODE_RIGHT]          = 0x8000,
+
+    [Q_KEY_CODE_T]              = 0x020000, [Q_KEY_CODE_KP_DIVIDE] = 0x020000,
+    [Q_KEY_CODE_C]              = 0x040000,
+    [Q_KEY_CODE_K]              = 0x080000,
+    [Q_KEY_CODE_F4]             = 0x100000, // SYMB
+    [Q_KEY_CODE_F3]             = 0x200000, // MENU
+    [Q_KEY_CODE_Q]              = 0x400000, [Q_KEY_CODE_KP_7] = 0x400000,
+
+    [Q_KEY_CODE_X]              = 0x02000000, [Q_KEY_CODE_KP_MULTIPLY] = 0x02000000,
+    [Q_KEY_CODE_ALT]            = 0x04000000,
+    [Q_KEY_CODE_J]              = 0x08000000,
+    [Q_KEY_CODE_HOME]           = 0x10000000,
+    [Q_KEY_CODE_F2]             = 0x20000000, // VIEW
+    [Q_KEY_CODE_W]              = 0x40000000, [Q_KEY_CODE_KP_6] = 0x40000000,
+
+    [Q_KEY_CODE_KP_SUBTRACT]    = 0x0200000000,
+    [Q_KEY_CODE_E]              = 0x0400000000,
+    [Q_KEY_CODE_I]              = 0x0800000000,
+    [Q_KEY_CODE_F7]             = 0x1000000000, // APPS
+    [Q_KEY_CODE_UP]             = 0x2000000000,
+    [Q_KEY_CODE_V]              = 0x4000000000, [Q_KEY_CODE_KP_5] = 0x4000000000,
+
+    [Q_KEY_CODE_KP_ADD]         = 0x020000000000,
+    [Q_KEY_CODE_A]              = 0x040000000000,
+    [Q_KEY_CODE_H]              = 0x080000000000,
+    [Q_KEY_CODE_DOWN]           = 0x100000000000,
+    [Q_KEY_CODE_Y]              = 0x200000000000, [Q_KEY_CODE_KP_1] = 0x200000000000,
+    [Q_KEY_CODE_U]              = 0x400000000000, [Q_KEY_CODE_KP_4] = 0x400000000000,
+
+    [Q_KEY_CODE_SPC]            = 0x02000000000000,
+    [Q_KEY_CODE_G]              = 0x04000000000000,
+    [Q_KEY_CODE_SHIFT]          = 0x08000000000000,
+    [Q_KEY_CODE_ESC]            = 0x10000000000000,
+    [Q_KEY_CODE_KP_DECIMAL]     = 0x20000000000000,
+    [Q_KEY_CODE_KP_3]           = 0x40000000000000,
+
+    [Q_KEY_CODE_LEFT]           = 0x0200000000000000,
+    [Q_KEY_CODE_B]              = 0x0400000000000000,
+    [Q_KEY_CODE_F]              = 0x0800000000000000,
+    [Q_KEY_CODE_N]              = 0x1000000000000000,
+    [Q_KEY_CODE_F1]             = 0x2000000000000000, // HELP
+    [Q_KEY_CODE_Z]              = 0x4000000000000000, [Q_KEY_CODE_KP_2] = 0x4000000000000000
+} ;
+
+static void hp_prime_keyboard_event(DeviceState *dev, QemuConsole *src,
+                               InputEvent *evt)
 {
-    int rel;
-    s3c2416_gpio_state* s = (s3c2416_gpio_state*)opaque;
+    s3c2416_gpio_state *s = (s3c2416_gpio_state *)dev;
+    InputKeyEvent *key = evt->u.key.data;
+    int qcode;
 
-    rel = (keycode & 0x80) ? 1 : 0; /* key release from qemu */
-    keycode &= ~(0x80); /* strip qemu key release bit */
+    assert(evt->type == INPUT_EVENT_KIND_KEY);
+    qcode = qemu_input_key_value_to_qcode(key->key);
 
-    if (keycode  == 80)
-    {
-        if (rel)
-        {
-            s->GPDDAT &= ~(1 << 5);
-            s->GPGDAT &= ~(1 << 4);
-        }
-        else
-        {
-            s->GPDDAT |= (1 << 5);
-            s->GPGDAT |= (1 << 4);
-        }
-    }
-    else if (keycode == 72)
-    {
-        if (rel)
-        {
-            s->GPDDAT &= ~(1 << 4);
-            s->GPGDAT &= ~(1 << 5);
-        }
-        else
-        {
-            s->GPDDAT |= (1 << 4);
-            s->GPGDAT |= (1 << 5);
-        }
-    }
-    else if (keycode == 28)
-    {
-        if (rel)
-        {
-            s->GPDDAT &= ~(1 << 0);
-            s->GPGDAT &= ~(1 << 7);
-        }
-        else
-        {
-            s->GPDDAT |= (1 << 0);
-            s->GPGDAT |= (1 << 7);
-        }
-    }
+    if (qcode >= Q_KEY_CODE__MAX)
+        return;
+
+    if (key->down)
+        s->keyboard |= hp_prime_keymap[qcode];
+    else
+        s->keyboard &= ~hp_prime_keymap[qcode];
+}
+
+static QemuInputHandler hp_prime_keyboard_handler = {
+    .name  = "HP Prime Keyboard",
+    .mask  = INPUT_EVENT_MASK_KEY,
+    .event = hp_prime_keyboard_event,
 };
-
 
 static const MemoryRegionOps s3c2416_gpio_ops = {
     .read = s3c2416_gpio_read,
     .write = s3c2416_gpio_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
-
 
 static void s3c2416_gpio_init(Object *obj)
 {
@@ -774,7 +822,10 @@ static void s3c2416_gpio_init(Object *obj)
     s->PDDMCON = 0x411540;
     s->PDSMCON = 0x5451500;
 
-    qemu_add_kbd_event_handler(s3c2416_gpio_keyboard_event, s);
+    s->keyboard = 0;
+
+    qemu_input_handler_register((DeviceState *)s,
+                                &hp_prime_keyboard_handler);
 };
 
 static const TypeInfo s3c2416_gpio_type = {
