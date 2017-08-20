@@ -13,3 +13,4 @@ obj-$(CONFIG_SH4) += tc58128.o
 
 obj-$(CONFIG_VIRTIO) += virtio-blk.o
 obj-$(CONFIG_VIRTIO) += dataplane/
+obj-$(CONFIG_S3C2416) += s3c2416_nand.o
