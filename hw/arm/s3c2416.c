@@ -70,10 +70,10 @@ static void prime_init(MachineState *machine)
         NULL);
 
     // Create UART
-    qemu_irq uart_irq = qdev_get_gpio_in(dev, (28 << 1) | 0);
-    qemu_irq lcd_irq = qdev_get_gpio_in(dev, (16 << 1) | 0);
-    qemu_irq rtc_irq = qdev_get_gpio_in(dev, (30 << 1) | 0);
-    qemu_irq tick_irq = qdev_get_gpio_in(dev, (8 << 1) | 0);
+    qemu_irq uart_irq = qdev_get_gpio_in(dev, INT_UART0);
+    qemu_irq lcd_irq = qdev_get_gpio_in(dev, INT_LCD);
+    qemu_irq rtc_irq = qdev_get_gpio_in(dev, INT_RTC);
+    qemu_irq tick_irq = qdev_get_gpio_in(dev, INT_TICK);
 
     (void*) exynos4210_uart_create(0x50000000, 32, 0, NULL, uart_irq);
 

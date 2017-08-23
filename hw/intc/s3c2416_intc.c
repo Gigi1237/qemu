@@ -1,7 +1,66 @@
-
+﻿
 #include "qemu/osdep.h"
 #include "hw/intc/s3c2416_intc.h"
 #include "qemu/log.h"
+
+typedef struct interrupt_info
+{
+    uint8_t grp;
+    uint32_t value;
+    uint32_t offset;
+    uint32_t subint;
+} interrupt_info;
+
+static interrupt_info int_info_array[INT_END] = 
+{
+    [INT_UART0] =   { 0, 0x10000000, 28, 0 },
+    [SUBINT_RXD0] = { 0, 0x10000000, 28, 0x1 },
+    [SUBINT_TXD0] = { 0, 0x10000000, 28, 0x2 },
+    [SUBINT_ERR0] = { 0, 0x10000000, 28, 0x4 },
+
+    [INT_LCD] = { 0, 0x10000, 16, 0},
+
+    [INT_RTC] = { 0, 0x40000000, 30, 0},
+
+    [INT_TICK] = { 0, 0x100, 8, 0},
+
+    [INT_TIMER0] = { 0, 0x400, 10, 0 },
+    [INT_TIMER1] = { 0, 0x800, 11, 0 },
+    [INT_TIMER2] = { 0, 0x1000, 12, 0 },
+    [INT_TIMER3] = { 0, 0x2000, 13, 0 },
+    [INT_TIMER4] = { 0, 0x4000, 14, 0 },
+};
+
+static int s3c2416_get_int_id(int offset, uint8_t grp)
+{
+    for (int i = 0; i < INT_END; i++)
+    {
+
+        if (int_info_array[i].grp == grp && int_info_array[i].offset == offset)
+            return i;
+    }
+    return 0xFFFFFF;
+}
+
+static uint32_t s3c2416_intc_get_subsource(int val)
+{
+    return int_info_array[val].subint;
+}
+
+static uint32_t s3c2416_intc_get_int(int val)
+{
+    return int_info_array[val].value;
+}
+
+static uint32_t s3c2416_intc_get_offset(int val)
+{
+    return int_info_array[val].offset;
+}
+
+static uint8_t s3c2416_intc_get_grp(int val)
+{
+    return int_info_array[val].grp;
+}
 
 /// does not do arbitration yet
 static int S3C2416_intc_get_next_interrupt(S3C2416_intc_state* s)
@@ -11,7 +70,7 @@ static int S3C2416_intc_get_next_interrupt(S3C2416_intc_state* s)
         for (int j = 0; j < 32; j++)
         {
             if (s->SRCPND[i] & (1u << j) & ~(s->INTMSK[i] & (1u << j))) {
-                return (j << 1) | i;
+                return s3c2416_get_int_id(j, i);
             }
         }
     }
@@ -22,6 +81,8 @@ static void S3C2416_intc_update(S3C2416_intc_state* s)
 {
     int irq = S3C2416_intc_get_next_interrupt(s);
 
+    assert(irq != 0xFFFFFF);
+
     if (irq == -1) {
         s->INTPND[0] = 0;
         s->INTPND[1] = 0;
@@ -30,42 +91,26 @@ static void S3C2416_intc_update(S3C2416_intc_state* s)
         return;
     }
 
-    int grp = irq & 1;
-    int n = irq >> 1;
+    int grp = s3c2416_intc_get_grp(irq);
+    int n = s3c2416_intc_get_int(irq);
 
     printf("Interrupt called! grp: %i, n: %i\n", grp, n);
 
     // ITS AN FIQ
-    if (s->INTMOD[grp] & (1u << n)) {
+    if (s->INTMOD[grp] & n) {
         qemu_set_irq(s->fiq, 1);
         return;
     }
 
-    s->INTPND[grp] = (1u << n);
+    s->INTPND[grp] = n;
+    s->INTOFFSET[grp] = s3c2416_intc_get_offset(irq);
     qemu_set_irq(s->irq, 1);
 }
 
-#define END_OF_LIST 0xFFFFFFFF
-
-#define INT_UART0 28
-#define INT_SUBINT_RXD0 0
-#define INT_SUBINT_TXD0 1
-#define INT_SUBINT_ERR0 2
-
-static uint32_t int_with_subsource[] =
-{
-    INT_UART0,   /* UART 0 */
-    END_OF_LIST
-};
-
 static bool S3C2416_intc_has_subsource(int n)
 {
-    for (int i = 0; int_with_subsource[i] != END_OF_LIST; i++)
-    {
-        if (int_with_subsource[i] == n)
-            return true;
-    }
-    return false;
+    return s3c2416_intc_get_subsource(n) != 0;
+        
 }
 
 static void S3C2416_intc_set(void *opaque, int n, int level)
@@ -73,29 +118,21 @@ static void S3C2416_intc_set(void *opaque, int n, int level)
 
     S3C2416_intc_state *s = (S3C2416_intc_state*)opaque;
 
-    int grp, irq, enable;
-    grp = n & 1;
-    irq = n >> 1;
-    enable = level & 1;
+    int grp, irq;
+    grp = s3c2416_intc_get_grp(n);
+    irq = s3c2416_intc_get_int(n);
 
     // Only GROUP 0 Interrupts have subsources
-    if (grp == 0 && S3C2416_intc_has_subsource(irq))
+    if (grp == 0 && S3C2416_intc_has_subsource(n))
     {
-        int subsrc = level >> 1;
-        switch (irq)
-        {
-        case INT_UART0:
-            if (enable)
-                s->SUBSRCPND |= enable;
+        int subsrc = s3c2416_intc_get_subsource(n);
+            if (level)
+                s->SUBSRCPND |= subsrc;
             else
-                s->SUBSRCPND &= ~(1 << subsrc);
-            break;
-        default:
-            break;
-        }
+                s->SUBSRCPND &= ~subsrc;
 
         // Subsource is masked
-        if (s->INTSUBMSK & (1 << subsrc)) {
+        if (s->INTSUBMSK & subsrc) {
             S3C2416_intc_update(s);
             return;
         }
@@ -104,10 +141,10 @@ static void S3C2416_intc_set(void *opaque, int n, int level)
 
     //printf("Set IRQ n: %i, level: %i\n", n, level);
 
-    if (enable)
-        s->SRCPND[grp] |= 1u << irq;
+    if (level)
+        s->SRCPND[grp] |= irq;
     else
-        s->SRCPND[grp] &= ~(1u << irq);
+        s->SRCPND[grp] &= irq;
 
     S3C2416_intc_update(s);
 }
@@ -180,7 +217,7 @@ static void S3C2416_intc_write(void *opaque, hwaddr offset,
     {
     /* SRCPND */
     case 0:
-        s->SRCPND[i] = val;
+        s->SRCPND[i] &= ~val;
         break;
     /* INTMOD */
     case 0x4:
@@ -192,7 +229,7 @@ static void S3C2416_intc_write(void *opaque, hwaddr offset,
         break;
     /* INTPND */
     case 0x10:
-        s->INTPND[i] = val;
+        s->INTPND[i] &= ~val;
         break;
     /* INTOFFSET */
     case 0x14:
@@ -232,7 +269,7 @@ static void S3C2416_intc_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &S3C2416_intc_ops, s, "S3C2416_Intc", 0x00010000);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    qdev_init_gpio_in(dev, S3C2416_intc_set, 64);
+    qdev_init_gpio_in(dev, S3C2416_intc_set, INT_END);
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_irq(sbd, &s->fiq);
 };
