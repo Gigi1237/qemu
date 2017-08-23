@@ -75,6 +75,15 @@ static void prime_init(MachineState *machine)
     qemu_irq rtc_irq = qdev_get_gpio_in(dev, INT_RTC);
     qemu_irq tick_irq = qdev_get_gpio_in(dev, INT_TICK);
 
+    qemu_irq timer[5] = 
+    {
+        qdev_get_gpio_in(dev, INT_TIMER0),
+        qdev_get_gpio_in(dev, INT_TIMER1),
+        qdev_get_gpio_in(dev, INT_TIMER2),
+        qdev_get_gpio_in(dev, INT_TIMER3),
+        qdev_get_gpio_in(dev, INT_TIMER4)
+    };
+
     (void*) exynos4210_uart_create(0x50000000, 32, 0, NULL, uart_irq);
 
     sysbus_create_simple("s3c2416-lcd", 0x4C800000, lcd_irq);
@@ -91,9 +100,13 @@ static void prime_init(MachineState *machine)
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x48000000);
 
-    dev = qdev_create(NULL, "s3c2416-pwm");
-    qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x51000000);
+    sysbus_create_varargs("exynos4210.pwm", 0x51000000,
+        timer[0],
+        timer[1],
+        timer[2],
+        timer[3],
+        timer[4],
+        NULL);
 
     dev = qdev_create(NULL, "s3c2416-wtcon");
     qdev_init_nofail(dev);
