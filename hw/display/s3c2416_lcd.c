@@ -36,7 +36,8 @@ typedef struct {
 
 static void S3C2416_lcd_draw_line(void *opaque, uint8_t *d, const uint8_t *src, int width, int deststep)
 {
-    for (int i = 0; i < width * deststep; i++) {
+    int i;
+    for (i = 0; i < width * deststep; i++) {
         d[i] = src[i];
     }
 }

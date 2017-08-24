@@ -80,7 +80,8 @@ typedef struct {
 
 static void s3c2416_gpio_update_keyboard(s3c2416_gpio_state *s) {
     s->GPGDAT = 0;
-    for (int i = 0; i < 8; i++) {
+    int i;
+    for (i = 0; i < 8; i++) {
         if (s->GPDDAT & (1 << i)) {
             s->GPGDAT |= s->keyboard >> (8*i);
         }

@@ -33,7 +33,8 @@ static interrupt_info int_info_array[INT_END] =
 
 static int s3c2416_get_int_id(int offset, uint8_t grp)
 {
-    for (int i = 0; i < INT_END; i++)
+    int i;
+    for (i = 0; i < INT_END; i++)
     {
 
         if (int_info_array[i].grp == grp && int_info_array[i].offset == offset)
@@ -65,9 +66,10 @@ static uint8_t s3c2416_intc_get_grp(int val)
 /// does not do arbitration yet
 static int S3C2416_intc_get_next_interrupt(S3C2416_intc_state* s)
 {
-    for (int i = 0; i < 2; i++)
+    int i,j;
+    for (i = 0; i < 2; i++)
     {
-        for (int j = 0; j < 32; j++)
+        for (j = 0; j < 32; j++)
         {
             if (s->SRCPND[i] & (1u << j) & ~(s->INTMSK[i] & (1u << j))) {
                 return s3c2416_get_int_id(j, i);
