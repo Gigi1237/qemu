@@ -834,7 +834,7 @@ static void s3c2416_gpio_init(Object *obj)
     s->EINTMASK = 0xFFFFF0;
     s->EINTPEND = 0x0;
     s->GSTATUS0 = 0x0;
-    s->GSTATUS1 = 0x32440001;
+    s->GSTATUS1 = 0x32450003;
     s->DSC0 = 0x2AAAAAAA;
     s->DSC1 = 0xAAAAAAA;
     s->DSC2 = 0xAAAAAAA;
