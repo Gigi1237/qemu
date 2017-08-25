@@ -6782,6 +6782,7 @@ static void arm_cpu_do_interrupt_aarch32(CPUState *cs)
     if (arm_feature(env, ARM_FEATURE_V4T)) {
         env->thumb = (A32_BANKED_CURRENT_REG_GET(env, sctlr) & SCTLR_TE) != 0;
     }
+    env->thumb=0;
     env->regs[14] = env->regs[15] + offset;
     env->regs[15] = addr;
 }
