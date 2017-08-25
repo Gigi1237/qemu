@@ -186,10 +186,10 @@ static void exynos4210_pwm_tick(void *opaque)
     p->reg_tint_cstat |= TINT_CSTAT_STATUS(id);
 
     /* raise IRQ */
-    if (p->reg_tint_cstat & TINT_CSTAT_ENABLE(id)) {
+    //if (p->reg_tint_cstat & TINT_CSTAT_ENABLE(id)) {
         DPRINTF("timer %d IRQ\n", id);
         qemu_irq_raise(p->timer[id].irq);
-    }
+    //}
 
     /* reload timer */
     if (id != 4) {
@@ -339,7 +339,6 @@ static void exynos4210_pwm_write(void *opaque, hwaddr offset,
                 qemu_irq_lower(s->timer[i].irq);
             }
         }
-
         s->reg_tint_cstat = new_val;
         break;
 
