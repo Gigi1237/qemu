@@ -90,14 +90,14 @@ static void S3C2416_intc_update(S3C2416_intc_state* s)
         s->INTPND[1] = 0;
         qemu_set_irq(s->irq, 0);
         qemu_set_irq(s->fiq, 0);
-        printf("no interrupt\n");
+        //printf("no interrupt\n");
         return;
     }
 
     int grp = s3c2416_intc_get_grp(irq);
     int n = s3c2416_intc_get_int(irq);
 
-    printf("Interrupt called! grp: %08x, n: %08x, irq: %08x\n", grp, n, irq);
+    //printf("Interrupt called! grp: %08x, n: %08x, irq: %08x\n", grp, n, irq);
 
     // ITS AN FIQ
     if (s->INTMOD[grp] & n) {
@@ -142,7 +142,7 @@ static void S3C2416_intc_set(void *opaque, int n, int level)
     }
 
 
-    printf("Set IRQ n: %i, level: %i\n", n, level);
+    //printf("Set IRQ n: %i, level: %i\n", n, level);
 
     if (level)
         s->SRCPND[grp] |= irq;
@@ -215,13 +215,12 @@ static void S3C2416_intc_write(void *opaque, hwaddr offset,
         i = 1;
         reg = offset - 0x40;
     }
-    printf("interrupt write reg: %04x val: %lx\n",reg,val);
+    //printf("interrupt write reg: %04x val: %lx\n",reg,val);
     switch (reg)
     {
     /* SRCPND */
     case 0:
         s->SRCPND[i] &= ~val;
-        printf("srcpend %d = %08x\n",i,s->SRCPND[i]);
         break;
     /* INTMOD */
     case 0x4:
