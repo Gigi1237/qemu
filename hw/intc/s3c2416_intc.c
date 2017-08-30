@@ -143,6 +143,7 @@ static void S3C2416_intc_set(void *opaque, int n, int level)
 
 
     //printf("Set IRQ n: %i, level: %i\n", n, level);
+    //printf("Set grp %i IRQ: %x, sub %i level: %i\n",grp, irq, subsrc, level);
 
     if (level)
         s->SRCPND[grp] |= irq;
@@ -240,7 +241,7 @@ static void S3C2416_intc_write(void *opaque, hwaddr offset,
         break;
         /* SUBSRCPND */
     case 0x18:
-        s->SUBSRCPND = val;
+        s->SUBSRCPND &= ~val;
         break;
         /* INTSUBMSK */
     case 0x1C:
@@ -267,6 +268,7 @@ static const MemoryRegionOps S3C2416_intc_ops =
 static void S3C2416_intc_init(Object *obj)
 {
     DeviceState* dev = DEVICE(obj);
+
     S3C2416_intc_state* s = S3C2416_INTC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
@@ -276,7 +278,23 @@ static void S3C2416_intc_init(Object *obj)
     qdev_init_gpio_in(dev, S3C2416_intc_set, INT_END);
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_irq(sbd, &s->fiq);
+    s->INTMSK[0]=0xffffffff;
+    s->INTMSK[1]=0xffffffff;
+    s->INTSUBMSK=0xffffffff;
 };
+static void S3C2416_intc_reset(DeviceState *dev)
+{
+    S3C2416_intc_state* s = S3C2416_INTC(dev);
+
+    s->INTMSK[0]=0xffffffff;
+    s->INTMSK[1]=0xffffffff;
+    s->INTSUBMSK=0xffffffff;
+};
+static void S3C2416_intc_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    dc->reset = S3C2416_intc_reset;
+}
 
 static const TypeInfo S3C2416_intc =
 {
@@ -284,7 +302,7 @@ static const TypeInfo S3C2416_intc =
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(S3C2416_intc_state),
     .instance_init = S3C2416_intc_init,
-    //.class_init = vpb_sic_class_init,
+    .class_init = S3C2416_intc_class_init,
 };
 
 static void s3c2416_intc_register_types(void)
