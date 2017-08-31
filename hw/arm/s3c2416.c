@@ -14,7 +14,7 @@
 #include "chardev/char-fe.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
-
+#include "hw/arm/s3c2416.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,10 +70,13 @@ static void prime_init(MachineState *machine)
         NULL);
 
     // Create UART
-    qemu_irq uart_irq = qdev_get_gpio_in(dev, INT_UART0);
+    //qemu_irq uart_irq = qdev_get_gpio_in(dev, INT_UART0);
     qemu_irq lcd_irq = qdev_get_gpio_in(dev, INT_LCD);
     qemu_irq rtc_irq = qdev_get_gpio_in(dev, INT_RTC);
     qemu_irq tick_irq = qdev_get_gpio_in(dev, INT_TICK);
+    qemu_irq rxd0_sub = qdev_get_gpio_in(dev, SUBINT_RXD0);
+    qemu_irq txd0_sub = qdev_get_gpio_in(dev, SUBINT_TXD0);
+    qemu_irq err0_sub = qdev_get_gpio_in(dev, SUBINT_ERR0);
 
     qemu_irq timer[5] = 
     {
@@ -84,7 +87,9 @@ static void prime_init(MachineState *machine)
         qdev_get_gpio_in(dev, INT_TIMER4)
     };
 
-    (void*) exynos4210_uart_create(0x50000000, 32, 0, NULL, uart_irq);
+    //(void*) exynos4210_uart_create(0x50000000, 32, 0, NULL, uart_irq);
+    //(void*) s3c2416_uart_create(0x50000000, 32, 0, NULL, uart_irq);
+    (void*) s3c2416_uart_create(0x50000000, 64, 0, NULL, rxd0_sub,txd0_sub,err0_sub);
 
     sysbus_create_simple("s3c2416-lcd", 0x4C800000, lcd_irq);
     

@@ -34,10 +34,10 @@
 #undef DEBUG_Rx_DATA
 #undef DEBUG_Tx_DATA
 
-#define DEBUG_UART            1
+#define DEBUG_UART            0
 #define DEBUG_UART_EXTEND     0
 #define DEBUG_IRQ             0
-#define DEBUG_Rx_DATA         0
+#define DEBUG_Rx_DATA         1
 #define DEBUG_Tx_DATA         1
 
 #if DEBUG_UART
@@ -275,14 +275,24 @@ static void s3c2416_uart_update_irq(Exynos4210UartState *s)
         if (count <= s3c2416_uart_Tx_FIFO_trigger_level(s)) {
             s->reg[I_(UINTSP)] |= UINTSP_TXD;
         }
+        else
+        {
+            s->reg[I_(UINTSP)] &= ~UINTSP_TXD;
+        }
+        count =fifo_elements_number(&s->rx);// (s->reg[I_(UFSTAT)] & UFSTAT_Rx_FIFO_COUNT);
+        if (count){// ||count >= s3c2416_uart_Rx_FIFO_trigger_level(s)) {
+            s->reg[I_(UINTSP)] |= UINTSP_RXD;
+        }
+        else
+        {
+            s->reg[I_(UINTSP)] &= ~UINTSP_RXD;
+        }
     }
 
-    s->reg[I_(UINTP)] = s->reg[I_(UINTSP)] ;
-
-    qemu_set_irq(s->irq_rx,s->reg[I_(UINTP)]&1);
-    qemu_set_irq(s->irq_err,(s->reg[I_(UINTP)]&2)>>1);
-    qemu_set_irq(s->irq_tx,(s->reg[I_(UINTP)]&4)>>2);
-    s->reg[I_(UINTSP)]=0;
+    //s->reg[I_(UINTP)] = s->reg[I_(UINTSP)] ;
+    qemu_set_irq(s->irq_rx,s->reg[I_(UINTSP)]&1);
+    qemu_set_irq(s->irq_err,(s->reg[I_(UINTSP)]&2)>>1);
+    qemu_set_irq(s->irq_tx,(s->reg[I_(UINTSP)]&4)>>2);
 }
 
 static void s3c2416_uart_update_parameters(Exynos4210UartState *s)

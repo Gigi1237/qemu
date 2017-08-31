@@ -30,6 +30,16 @@ static interrupt_info int_info_array[INT_END] =
     [INT_TIMER3] = { 0, 0x2000, 13, 0 },
     [INT_TIMER4] = { 0, 0x4000, 14, 0 },
 };
+static int s3c2416_intc_get_subint_id(int subint)
+{
+    int i;
+    for (i = 0; i < INT_END; i++)
+    {
+        if (int_info_array[i].subint == subint)
+            return i;
+    }
+    return 0xFFFFFF;
+}
 
 static int s3c2416_get_int_id(int offset, uint8_t grp)
 {
@@ -64,6 +74,18 @@ static uint8_t s3c2416_intc_get_grp(int val)
 }
 
 /// does not do arbitration yet
+static void S3C2416_intc_update_subint(S3C2416_intc_state* s)
+{
+    int j;
+    for (j = 0; j < 32; j++)
+    {
+        if (s->SUBSRCPND & (1u << j) & ~(s->INTSUBMSK & (1u << j))) {
+            int n = s3c2416_intc_get_subint_id(1u<<j);
+            int grp = s3c2416_intc_get_grp(n);
+            s->SRCPND[grp] |= s3c2416_intc_get_int(n);
+        }
+    }
+}
 static int S3C2416_intc_get_next_interrupt(S3C2416_intc_state* s)
 {
     int i,j;
@@ -81,6 +103,7 @@ static int S3C2416_intc_get_next_interrupt(S3C2416_intc_state* s)
 
 static void S3C2416_intc_update(S3C2416_intc_state* s)
 {
+    S3C2416_intc_update_subint(s);
     int irq = S3C2416_intc_get_next_interrupt(s);
 
     assert(irq != 0xFFFFFF);
