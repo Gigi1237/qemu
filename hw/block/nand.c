@@ -263,15 +263,16 @@ static void nand_command(NANDFlashState *s)
         s->iolen = 0;
         nand_pushio_byte(s, s->manf_id);
         nand_pushio_byte(s, s->chip_id);
-        nand_pushio_byte(s, 'Q'); /* Don't-care byte (often 0xa5) */
+        nand_pushio_byte(s, 0x10); /* Don't-care byte (often 0xa5) */
         if (nand_flash_ids[s->chip_id].options & NAND_SAMSUNG_LP) {
             /* Page Size, Block Size, Spare Size; bit 6 indicates
              * 8 vs 16 bit width NAND.
              */
-            nand_pushio_byte(s, (s->buswidth == 2) ? 0x55 : 0x15);
+            nand_pushio_byte(s, (s->buswidth == 2) ? 0x55 : 0x95);
         } else {
             nand_pushio_byte(s, 0xc0); /* Multi-plane */
         }
+		nand_pushio_byte(s, 0x44);
         break;
 
     case NAND_CMD_RANDOMREAD2:

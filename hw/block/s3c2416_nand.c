@@ -197,7 +197,7 @@ static void s3c2416_nand_init(Object *obj)
     /* FIXME use a qdev drive property instead of drive_get() */
     nand = drive_get(IF_MTD, 0, 0);
     s->nand = nand_init(nand ? blk_by_legacy_dinfo(nand) : NULL,
-        0xAD/*0xEC*/, 0xDA);
+        0xEC, 0xDA);
 
     memory_region_init_io(&s->iomem, obj, &s3c2416_nand_ops, s, "prime", 0x40);
     sysbus_init_mmio(dev, &s->iomem);
