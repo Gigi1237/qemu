@@ -46,16 +46,25 @@ static void prime_init(MachineState *machine)
 
     // Init memory before nand
     MemoryRegion *address_space_mem = get_system_memory();
-    MemoryRegion *ram = g_new(MemoryRegion, 1);
+    MemoryRegion *dram = g_new(MemoryRegion, 4);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
 
     uint8_t *sram_ptr = g_new0(uint8_t, 0x10000);
+	uint8_t *dram_ptr = g_new0(uint8_t, 0x02000000);
     assert(sram_ptr);
+	assert(dram_ptr);
+	
     memory_region_init_ram_ptr(sram, NULL, "prime.sram", 0x00010000, sram_ptr);
     memory_region_add_subregion(address_space_mem, 0x00000000, sram);
 
-    memory_region_init_ram(ram, NULL, "prime.ram", 0x02000000, &error_fatal);
-    memory_region_add_subregion(address_space_mem, 0x30000000, ram);
+	memory_region_init_ram_ptr(dram, NULL, "prime.dram0", 0x02000000, dram_ptr);
+    memory_region_add_subregion(address_space_mem, 0x30000000, dram);
+	memory_region_init_ram_ptr(&dram[1], NULL, "prime.dram1", 0x02000000, dram_ptr);
+    memory_region_add_subregion(address_space_mem, 0x32000000, &dram[1]);
+	memory_region_init_ram_ptr(&dram[2], NULL, "prime.dram2", 0x02000000, dram_ptr);
+    memory_region_add_subregion(address_space_mem, 0x34000000, &dram[2]);
+	memory_region_init_ram_ptr(&dram[3], NULL, "prime.dram3", 0x02000000, dram_ptr);
+    memory_region_add_subregion(address_space_mem, 0x36000000, &dram[3]);
 
 
     DeviceState *dev;
