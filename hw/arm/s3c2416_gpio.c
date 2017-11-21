@@ -18,6 +18,8 @@ typedef struct {
 
     MemoryRegion iomem;
 
+    qemu_irq irq[2];
+    
     uint32_t GPACON;
     uint32_t GPADAT;
     uint32_t GPBCON;
@@ -771,6 +773,25 @@ static QemuInputHandler hp_prime_keyboard_handler = {
     .event = hp_prime_keyboard_event,
 };
 
+static void S3C2416_gpio_intc_set(void *opaque, int n, int level)
+{
+    s3c2416_gpio_state *s = S3C2416_GPIO(opaque);
+    
+   uint32_t irq = 1 << n;
+    if (n < 4)
+        return;
+    
+    if (level)
+        s->EINTPEND |= irq;
+    else
+        s->EINTPEND &= irq;
+    
+    uint32_t set = n < 8 ? 0 : 1;
+    
+    if (!(s->EINTMASK & irq))
+        qemu_set_irq(s->irq[set], level);
+}
+
 static const MemoryRegionOps s3c2416_gpio_ops = {
     .read = s3c2416_gpio_read,
     .write = s3c2416_gpio_write,
@@ -783,7 +804,12 @@ static void s3c2416_gpio_init(Object *obj)
     s3c2416_gpio_state *s = S3C2416_GPIO(obj);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &s3c2416_gpio_ops, s, "s3c2416_gpio", 0x00001000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);    
+    
+    qdev_init_gpio_in(DEVICE(obj), S3C2416_gpio_intc_set, 16);
+    sysbus_init_irq(sbd, &s->irq[0]);
+    sysbus_init_irq(sbd, &s->irq[1]);
+
 
     s->GPACON = 0xFFFFFF;
     s->GPADAT = 0x0;

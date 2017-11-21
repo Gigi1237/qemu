@@ -3,6 +3,18 @@
 #include "hw/intc/s3c2416_intc.h"
 #include "qemu/log.h"
 
+
+#ifndef S3C2416_INTC_DEBUG
+#define S3C2416_INTC_DEBUG 0
+#endif
+
+#if S3C2416_INTC_DEBUG
+#define DPRINT(fmt, args...) printf(fmt, ## args);
+#else
+#define DPRINT(fmt, args...) 
+#endif
+
+
 typedef struct interrupt_info
 {
     uint8_t grp;
@@ -18,17 +30,26 @@ static interrupt_info int_info_array[INT_END] =
     [SUBINT_TXD0] = { 0, 0x10000000, 28, 0x2 },
     [SUBINT_ERR0] = { 0, 0x10000000, 28, 0x4 },
 
-    [INT_LCD] = { 0, 0x10000, 16, 0},
+    [INT_IIC0] = { 0, 0x8000000, 27, 0 },
+	
+    [INT_LCD] = { 0, 0x10000, 16, 0 },
 
-    [INT_RTC] = { 0, 0x40000000, 30, 0},
+    [INT_RTC] = { 0, 0x40000000, 30, 0 },
 
-    [INT_TICK] = { 0, 0x100, 8, 0},
+    [INT_TICK] = { 0, 0x100, 8, 0 },
 
     [INT_TIMER0] = { 0, 0x400, 10, 0 },
     [INT_TIMER1] = { 0, 0x800, 11, 0 },
     [INT_TIMER2] = { 0, 0x1000, 12, 0 },
     [INT_TIMER3] = { 0, 0x2000, 13, 0 },
     [INT_TIMER4] = { 0, 0x4000, 14, 0 },
+    
+    [EINT8_15] = { 0, 0x20, 5, 0},
+    [EINT4_7] = {0, 0x10, 4, 0},
+    [EINT3] = {0, 0x8, 3, 0},
+    [EINT2] = {0, 0x4, 2, 0},
+    [EINT1] = {0, 0x2, 1, 0},
+    [EINT0] = {0, 0x1, 0, 0}
 };
 static int s3c2416_intc_get_subint_id(int subint)
 {
@@ -113,14 +134,14 @@ static void S3C2416_intc_update(S3C2416_intc_state* s)
         s->INTPND[1] = 0;
         qemu_set_irq(s->irq, 0);
         qemu_set_irq(s->fiq, 0);
-        //printf("no interrupt\n");
+        DPRINT("no interrupt\n")
         return;
     }
 
     int grp = s3c2416_intc_get_grp(irq);
     int n = s3c2416_intc_get_int(irq);
 
-    //printf("Interrupt called! grp: %08x, n: %08x, irq: %08x\n", grp, n, irq);
+    DPRINT("Interrupt called! grp: %08x, n: %08x, irq: %08x\n", grp, n, irq)
 
     // ITS AN FIQ
     if (s->INTMOD[grp] & n) {
@@ -148,6 +169,7 @@ static void S3C2416_intc_set(void *opaque, int n, int level)
     grp = s3c2416_intc_get_grp(n);
     irq = s3c2416_intc_get_int(n);
 
+    DPRINT("Called IRQ n: %i, level: %i\n", n, level)
     // Only GROUP 0 Interrupts have subsources
     if (grp == 0 && S3C2416_intc_has_subsource(n))
     {
@@ -165,8 +187,8 @@ static void S3C2416_intc_set(void *opaque, int n, int level)
     }
 
 
-    //printf("Set IRQ n: %i, level: %i\n", n, level);
-    //printf("Set grp %i IRQ: %x, sub %i level: %i\n",grp, irq, subsrc, level);
+    DPRINT("Set IRQ n: %i, level: %i\n", n, level)
+    DPRINT("Set grp %i IRQ: %x, sub %i level: %i\n",grp, irq, s3c2416_intc_get_subsource(n), level)
 
     if (level)
         s->SRCPND[grp] |= irq;
@@ -239,7 +261,7 @@ static void S3C2416_intc_write(void *opaque, hwaddr offset,
         i = 1;
         reg = offset - 0x40;
     }
-    //printf("interrupt write reg: %04x val: %lx\n",reg,val);
+    DPRINT("interrupt write reg: %04x val: %lx\n",reg,val)
     switch (reg)
     {
     /* SRCPND */

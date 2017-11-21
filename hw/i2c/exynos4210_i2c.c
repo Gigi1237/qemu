@@ -26,7 +26,7 @@
 #include "hw/i2c/i2c.h"
 
 #ifndef EXYNOS4_I2C_DEBUG
-#define EXYNOS4_I2C_DEBUG                 0
+#define EXYNOS4_I2C_DEBUG                 0 
 #endif
 
 #define TYPE_EXYNOS4_I2C                  "exynos4210.i2c"
@@ -235,9 +235,7 @@ static void exynos4210_i2c_write(void *opaque, hwaddr offset,
             exynos4210_i2c_raise_interrupt(s);
         } else {
             i2c_end_transfer(s->bus);
-            if (!(s->i2ccon & I2CCON_INT_PEND)) {
-                s->i2cstat &= ~I2CSTAT_START_BUSY;
-            }
+            s->i2cstat &= ~I2CSTAT_START_BUSY;
             s->scl_free = true;
         }
         break;

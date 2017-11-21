@@ -14,6 +14,7 @@
 #include "chardev/char-fe.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
+#include "hw/i2c/i2c.h"
 #include "hw/arm/s3c2416.h"
 
 #include <stdio.h>
@@ -78,11 +79,13 @@ static void prime_init(MachineState *machine)
         qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ),
         NULL);
 
-    // Create UART
-    //qemu_irq uart_irq = qdev_get_gpio_in(dev, INT_UART0);
+    /* --- Get IRQs --- */
     qemu_irq lcd_irq = qdev_get_gpio_in(dev, INT_LCD);
+
     qemu_irq rtc_irq = qdev_get_gpio_in(dev, INT_RTC);
+
     qemu_irq tick_irq = qdev_get_gpio_in(dev, INT_TICK);
+
     qemu_irq rxd0_sub = qdev_get_gpio_in(dev, SUBINT_RXD0);
     qemu_irq txd0_sub = qdev_get_gpio_in(dev, SUBINT_TXD0);
     qemu_irq err0_sub = qdev_get_gpio_in(dev, SUBINT_ERR0);
@@ -95,25 +98,36 @@ static void prime_init(MachineState *machine)
         qdev_get_gpio_in(dev, INT_TIMER3),
         qdev_get_gpio_in(dev, INT_TIMER4)
     };
+	
+	qemu_irq i2c_irq = qdev_get_gpio_in(dev, INT_IIC0);
+    
+    qemu_irq gpio_irq[2] = {
+        qdev_get_gpio_in(dev, EINT4_7),
+        qdev_get_gpio_in(dev, EINT8_15)
+    };
 
-    //(void*) exynos4210_uart_create(0x50000000, 32, 0, NULL, uart_irq);
-    //(void*) s3c2416_uart_create(0x50000000, 32, 0, NULL, uart_irq);
+	/* --- UART --- */
     (void*) s3c2416_uart_create(0x50000000, 64, 0, NULL, rxd0_sub,txd0_sub,err0_sub);
 
+	/* --- LCD --- */
     sysbus_create_simple("s3c2416-lcd", 0x4C800000, lcd_irq);
     
+	/* --- GPIO --- */
     dev = qdev_create(NULL, "s3c2416-gpio");
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x56000000);
 
+	/* --- SYSC --- */
     dev = qdev_create(NULL, "s3c2416-sysc");
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x4C000000);
 
+	/* --- MEMC --- */
     dev = qdev_create(NULL, "s3c2416-memc");
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x48000000);
 
+	/* --- PWM --- */
     sysbus_create_varargs("exynos4210.pwm", 0x51000000,
         timer[0],
         timer[1],
@@ -122,12 +136,24 @@ static void prime_init(MachineState *machine)
         timer[4],
         NULL);
 
+	/* --- WTCON --- */
     dev = qdev_create(NULL, "s3c2416-wtcon");
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x53000000);
 
-    /* RTC */
+    /* --- RTC --- */
     sysbus_create_varargs("exynos4210.rtc", 0x57000000, rtc_irq, tick_irq, NULL);
+	
+	/* --- I2C --- */
+	dev = qdev_create(NULL, "exynos4210.i2c");
+	qdev_init_nofail(dev);
+	sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, i2c_irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x54000000);
+    I2CBus* i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
+    
+    /* --- Touch --- */
+    dev = i2c_create_slave(i2c, "nt11002", 0x1);
+    qdev_connect_gpio_out(dev, 0, gpio_irq[0]);
 
     // Load boot code into SRAM
     /* FIXME use a qdev drive property instead of drive_get() */
