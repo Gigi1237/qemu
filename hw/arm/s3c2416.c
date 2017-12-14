@@ -80,7 +80,11 @@ static void prime_init(MachineState *machine)
         NULL);
 
     /* --- Get IRQs --- */
-    qemu_irq lcd_irq = qdev_get_gpio_in(dev, INT_LCD);
+    qemu_irq lcd_irq[3] = {
+        qdev_get_gpio_in(dev, SUBINT_LCD4),
+        qdev_get_gpio_in(dev, SUBINT_LCD3),
+        qdev_get_gpio_in(dev, SUBINT_LCD2)
+    };
 
     qemu_irq rtc_irq = qdev_get_gpio_in(dev, INT_RTC);
 
@@ -110,7 +114,12 @@ static void prime_init(MachineState *machine)
     (void*) s3c2416_uart_create(0x50000000, 64, 0, NULL, rxd0_sub,txd0_sub,err0_sub);
 
 	/* --- LCD --- */
-    sysbus_create_simple("s3c2416-lcd", 0x4C800000, lcd_irq);
+    //sysbus_create_simple("s3c2416-lcd", 0x4C800000, lcd_irq);
+    sysbus_create_varargs("exynos4210.fimd", 0x4C800000,
+        lcd_irq[0],
+        lcd_irq[1],
+        lcd_irq[2],
+        NULL);
     
 	/* --- GPIO --- */
     dev = qdev_create(NULL, "s3c2416-gpio");

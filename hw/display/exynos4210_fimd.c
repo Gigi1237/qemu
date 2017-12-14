@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Samsung exynos4210 Display Controller (FIMD)
  *
  * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd.
@@ -30,8 +30,8 @@
 #include "qemu/bswap.h"
 
 /* Debug messages configuration */
-#define EXYNOS4210_FIMD_DEBUG              0
-#define EXYNOS4210_FIMD_MODE_TRACE         0
+#define EXYNOS4210_FIMD_DEBUG              2
+#define EXYNOS4210_FIMD_MODE_TRACE         1
 
 #if EXYNOS4210_FIMD_DEBUG == 0
     #define DPRINT_L1(fmt, args...)       do { } while (0)
@@ -59,29 +59,27 @@
         do {fprintf(stderr, "QEMU FIMD: "fmt, ## args); } while (0)
 #endif
 
-#define NUM_OF_WINDOWS              5
+#define NUM_OF_WINDOWS              2
 #define FIMD_REGS_SIZE              0x4114
 
 /* Video main control registers */
 #define FIMD_VIDCON0                0x0000
 #define FIMD_VIDCON1                0x0004
-#define FIMD_VIDCON2                0x0008
-#define FIMD_VIDCON3                0x000C
 #define FIMD_VIDCON0_ENVID_F        (1 << 0)
 #define FIMD_VIDCON0_ENVID          (1 << 1)
 #define FIMD_VIDCON0_ENVID_MASK     ((1 << 0) | (1 << 1))
 #define FIMD_VIDCON1_ROMASK         0x07FFE000
 
 /* Video time control registers */
-#define FIMD_VIDTCON_START          0x10
-#define FIMD_VIDTCON_END            0x1C
+#define FIMD_VIDTCON_START          0x8
+#define FIMD_VIDTCON_END            0x10
 #define FIMD_VIDTCON2_SIZE_MASK     0x07FF
 #define FIMD_VIDTCON2_HOR_SHIFT     0
 #define FIMD_VIDTCON2_VER_SHIFT     11
 
 /* Window control registers */
-#define FIMD_WINCON_START           0x0020
-#define FIMD_WINCON_END             0x0030
+#define FIMD_WINCON_START           0x0014
+#define FIMD_WINCON_END             0x0018
 #define FIMD_WINCON_ROMASK          0x82200000
 #define FIMD_WINCON_ENWIN           (1 << 0)
 #define FIMD_WINCON_BLD_PIX         (1 << 6)
@@ -117,8 +115,8 @@
 #define FIMD_WINCHMAP               0x003C
 
 /* Window position control registers */
-#define FIMD_VIDOSD_START           0x0040
-#define FIMD_VIDOSD_END             0x0088
+#define FIMD_VIDOSD_START           0x0028
+#define FIMD_VIDOSD_END             0x003C
 #define FIMD_VIDOSD_COORD_MASK      0x07FF
 #define FIMD_VIDOSD_HOR_SHIFT       11
 #define FIMD_VIDOSD_VER_SHIFT       0
@@ -127,18 +125,15 @@
 #define FIMD_VIDOSD_ALPHA_AEN1      0x000FFF
 
 /* Frame buffer address registers */
-#define FIMD_VIDWADD0_START         0x00A0
-#define FIMD_VIDWADD0_END           0x00C4
-#define FIMD_VIDWADD0_END           0x00C4
-#define FIMD_VIDWADD1_START         0x00D0
-#define FIMD_VIDWADD1_END           0x00F4
-#define FIMD_VIDWADD2_START         0x0100
-#define FIMD_VIDWADD2_END           0x0110
+#define FIMD_VIDWADD0_START         0x0064
+#define FIMD_VIDWADD0_END           0x006C
+#define FIMD_VIDWADD1_START         0x007C
+#define FIMD_VIDWADD1_END           0x0084
+#define FIMD_VIDWADD2_START         0x0094
+#define FIMD_VIDWADD2_END           0x009C
 #define FIMD_VIDWADD2_PAGEWIDTH     0x1FFF
 #define FIMD_VIDWADD2_OFFSIZE       0x1FFF
 #define FIMD_VIDWADD2_OFFSIZE_SHIFT 13
-#define FIMD_VIDW0ADD0_B2           0x20A0
-#define FIMD_VIDW4ADD0_B2           0x20C0
 
 /* Video interrupt control registers */
 #define FIMD_VIDINTCON0             0x130
@@ -1137,12 +1132,49 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
 
     fb_start_addr = w->buf_start[fimd_get_buffer_id(w)];
     /* Total number of bytes of virtual screen used by current window */
-    w->fb_len = fb_mapped_len = (w->virtpage_width + w->virtpage_offsize) *
+     fb_mapped_len = (w->virtpage_width + w->virtpage_offsize) *
             (w->rightbot_y - w->lefttop_y + 1);
 
+     if (fb_mapped_len == 0)
+     {
+         uint32_t width = ((s->vidtcon[2] >> FIMD_VIDTCON2_HOR_SHIFT) &
+             FIMD_VIDTCON2_SIZE_MASK) + 1;
+         uint32_t height = ((s->vidtcon[2] >> FIMD_VIDTCON2_VER_SHIFT) &
+             FIMD_VIDTCON2_SIZE_MASK) + 1;
+         uint32_t bpp;
+
+         switch (WIN_BPP_MODE(w))
+         {
+         case 0:
+             bpp = 1;
+             break;
+         case 1:
+             bpp = 2;
+             break;
+         case 2:
+             bpp = 4;
+             break;
+         case 3:
+         case 4:
+             bpp = 8;
+             break;
+         case 5:
+         case 6:
+         case 7:
+             bpp = 16;
+             break;
+         default:
+             bpp = 32;
+             break;
+         }
+
+         fb_mapped_len = (width * height * bpp) / 8;
+     }
+     w->fb_len = fb_mapped_len;
     /* TODO: add .exit and unref the region there.  Not needed yet since sysbus
      * does not support hot-unplug.
      */
+     printf("start: %llx, len: %llx\n", fb_start_addr, fb_mapped_len);
     if (w->mem_section.mr) {
         memory_region_set_log(w->mem_section.mr, false, DIRTY_MEMORY_VGA);
         memory_region_unref(w->mem_section.mr);
@@ -1152,7 +1184,7 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
                                         fb_start_addr, w->fb_len);
     assert(w->mem_section.mr);
     assert(w->mem_section.offset_within_address_space == fb_start_addr);
-    DPRINT_TRACE("Window %u framebuffer changed: address=0x%08x, len=0x%x\n",
+    DPRINT_TRACE("Window %u framebuffer changed: address=0x%08llx, len=0x%llx\n",
             win, fb_start_addr, w->fb_len);
 
     if (int128_get64(w->mem_section.size) != w->fb_len ||
@@ -1376,7 +1408,7 @@ static void exynos4210_fimd_write(void *opaque, hwaddr offset,
     unsigned w, i;
     uint32_t old_value;
 
-    DPRINT_L2("write offset 0x%08x, value=%llu(0x%08llx)\n", offset,
+    DPRINT_L2("write offset 0x%08llx, value=%llu(0x%08llx)\n", offset,
             (long long unsigned int)val, (long long unsigned int)val);
 
     switch (offset) {
@@ -1396,9 +1428,9 @@ static void exynos4210_fimd_write(void *opaque, hwaddr offset,
                 (s->vidcon[1] & FIMD_VIDCON1_ROMASK);
         s->vidcon[1] = val;
         break;
-    case FIMD_VIDCON2 ... FIMD_VIDCON3:
-        s->vidcon[(offset) >> 2] = val;
-        break;
+    //case FIMD_VIDCON2 ... FIMD_VIDCON3:
+    //    s->vidcon[(offset) >> 2] = val;
+    //    break;
     case FIMD_VIDTCON_START ... FIMD_VIDTCON_END:
         s->vidtcon[(offset - FIMD_VIDTCON_START) >> 2] = val;
         break;
@@ -1438,22 +1470,22 @@ static void exynos4210_fimd_write(void *opaque, hwaddr offset,
             fimd_update_memory_section(s, w);
         }
         break;
-    case FIMD_SHADOWCON:
-        old_value = s->shadowcon;
-        s->shadowcon = val;
-        for (w = 0; w < NUM_OF_WINDOWS; w++) {
-            if (FIMD_WINDOW_PROTECTED(old_value, w) &&
-                    !FIMD_WINDOW_PROTECTED(s->shadowcon, w)) {
-                fimd_update_memory_section(s, w);
-            }
-        }
-        break;
-    case FIMD_WINCHMAP:
-        s->winchmap = val;
-        break;
+    //case FIMD_SHADOWCON:
+    //    old_value = s->shadowcon;
+    //    s->shadowcon = val;
+    //    for (w = 0; w < NUM_OF_WINDOWS; w++) {
+    //        if (FIMD_WINDOW_PROTECTED(old_value, w) &&
+    //                !FIMD_WINDOW_PROTECTED(s->shadowcon, w)) {
+    //            fimd_update_memory_section(s, w);
+    //        }
+    //    }
+    //    break;
+    //case FIMD_WINCHMAP:
+    //    s->winchmap = val;
+    //    break;
     case FIMD_VIDOSD_START ... FIMD_VIDOSD_END:
         w = (offset - FIMD_VIDOSD_START) >> 4;
-        i = ((offset - FIMD_VIDOSD_START) & 0xF) >> 2;
+        i = ((offset - FIMD_VIDOSD_START) / 4) % 3;
         switch (i) {
         case 0:
             old_value = s->window[w].lefttop_y;
@@ -1490,7 +1522,7 @@ static void exynos4210_fimd_write(void *opaque, hwaddr offset,
             break;
         case 3:
             if (w != 1 && w != 2) {
-                DPRINT_ERROR("Bad write offset 0x%08x\n", offset);
+                DPRINT_ERROR("Bad write offset 0x%08llx\n", offset);
                 return;
             }
             s->window[w].osdsize = val;
@@ -1622,30 +1654,30 @@ static void exynos4210_fimd_write(void *opaque, hwaddr offset,
     case FIMD_I80IFCMD_START ... FIMD_I80IFCMD_END:
         s->i80ifcmd[(offset - FIMD_I80IFCMD_START) >> 2] = val;
         break;
-    case FIMD_VIDW0ADD0_B2 ... FIMD_VIDW4ADD0_B2:
-        if (offset & 0x0004) {
-            DPRINT_ERROR("bad write offset 0x%08x\n", offset);
-            break;
-        }
-        w = (offset - FIMD_VIDW0ADD0_B2) >> 3;
-        if (fimd_get_buffer_id(&s->window[w]) == 2 &&
-                s->window[w].buf_start[2] != val) {
-            s->window[w].buf_start[2] = val;
-            fimd_update_memory_section(s, w);
-            break;
-        }
-        s->window[w].buf_start[2] = val;
-        break;
+    //case FIMD_VIDW0ADD0_B2 ... FIMD_VIDW4ADD0_B2:
+    //    if (offset & 0x0004) {
+    //        DPRINT_ERROR("bad write offset 0x%08llx\n", offset);
+    //        break;
+    //    }
+    //    w = (offset - FIMD_VIDW0ADD0_B2) >> 3;
+    //    if (fimd_get_buffer_id(&s->window[w]) == 2 &&
+    //            s->window[w].buf_start[2] != val) {
+    //        s->window[w].buf_start[2] = val;
+    //        fimd_update_memory_section(s, w);
+    //        break;
+    //    }
+    //    s->window[w].buf_start[2] = val;
+    //    break;
     case FIMD_SHD_ADD0_START ... FIMD_SHD_ADD0_END:
         if (offset & 0x0004) {
-            DPRINT_ERROR("bad write offset 0x%08x\n", offset);
+            DPRINT_ERROR("bad write offset 0x%08llx\n", offset);
             break;
         }
         s->window[(offset - FIMD_SHD_ADD0_START) >> 3].shadow_buf_start = val;
         break;
     case FIMD_SHD_ADD1_START ... FIMD_SHD_ADD1_END:
         if (offset & 0x0004) {
-            DPRINT_ERROR("bad write offset 0x%08x\n", offset);
+            DPRINT_ERROR("bad write offset 0x%08llx\n", offset);
             break;
         }
         s->window[(offset - FIMD_SHD_ADD1_START) >> 3].shadow_buf_end = val;
@@ -1665,7 +1697,7 @@ static void exynos4210_fimd_write(void *opaque, hwaddr offset,
         s->window[w].palette[i] = val;
         break;
     default:
-        DPRINT_ERROR("bad write offset 0x%08x\n", offset);
+        DPRINT_ERROR("bad write offset 0x%08llx\n", offset);
         break;
     }
 }
@@ -1677,22 +1709,22 @@ static uint64_t exynos4210_fimd_read(void *opaque, hwaddr offset,
     int w, i;
     uint32_t ret = 0;
 
-    DPRINT_L2("read offset 0x%08x\n", offset);
+    DPRINT_L2("read offset 0x%08llx\n", offset);
 
     switch (offset) {
-    case FIMD_VIDCON0 ... FIMD_VIDCON3:
+    case FIMD_VIDCON0 ... FIMD_VIDCON1:
         return s->vidcon[(offset - FIMD_VIDCON0) >> 2];
     case FIMD_VIDTCON_START ... FIMD_VIDTCON_END:
         return s->vidtcon[(offset - FIMD_VIDTCON_START) >> 2];
     case FIMD_WINCON_START ... FIMD_WINCON_END:
         return s->window[(offset - FIMD_WINCON_START) >> 2].wincon;
-    case FIMD_SHADOWCON:
-        return s->shadowcon;
-    case FIMD_WINCHMAP:
-        return s->winchmap;
+    //case FIMD_SHADOWCON:
+    //    return s->shadowcon;
+    //case FIMD_WINCHMAP:
+    //    return s->winchmap;
     case FIMD_VIDOSD_START ... FIMD_VIDOSD_END:
         w = (offset - FIMD_VIDOSD_START) >> 4;
-        i = ((offset - FIMD_VIDOSD_START) & 0xF) >> 2;
+        i = ((offset - FIMD_VIDOSD_START) / 4 ) % 3;
         switch (i) {
         case 0:
             ret = ((s->window[w].lefttop_x & FIMD_VIDOSD_COORD_MASK) <<
@@ -1715,7 +1747,7 @@ static uint64_t exynos4210_fimd_read(void *opaque, hwaddr offset,
             break;
         case 3:
             if (w != 1 && w != 2) {
-                DPRINT_ERROR("bad read offset 0x%08x\n", offset);
+                DPRINT_ERROR("bad read offset 0x%08llx\n", offset);
                 return 0xBAADBAAD;
             }
             ret = s->window[w].osdsize;
@@ -1781,11 +1813,11 @@ static uint64_t exynos4210_fimd_read(void *opaque, hwaddr offset,
         return s->window[(offset - FIMD_WRTQOSCON_START) >> 2].rtqoscon;
     case FIMD_I80IFCMD_START ... FIMD_I80IFCMD_END:
         return s->i80ifcmd[(offset - FIMD_I80IFCMD_START) >> 2];
-    case FIMD_VIDW0ADD0_B2 ... FIMD_VIDW4ADD0_B2:
-        if (offset & 0x0004) {
-            break;
-        }
-        return s->window[(offset - FIMD_VIDW0ADD0_B2) >> 3].buf_start[2];
+    //case FIMD_VIDW0ADD0_B2 ... FIMD_VIDW4ADD0_B2:
+    //    if (offset & 0x0004) {
+    //        break;
+    //    }
+    //    return s->window[(offset - FIMD_VIDW0ADD0_B2) >> 3].buf_start[2];
     case FIMD_SHD_ADD0_START ... FIMD_SHD_ADD0_END:
         if (offset & 0x0004) {
             break;
@@ -1809,7 +1841,7 @@ static uint64_t exynos4210_fimd_read(void *opaque, hwaddr offset,
         return s->window[w].palette[i];
     }
 
-    DPRINT_ERROR("bad read offset 0x%08x\n", offset);
+    DPRINT_ERROR("bad read offset 0x%08llx\n", offset);
     return 0xBAADBAAD;
 }
 

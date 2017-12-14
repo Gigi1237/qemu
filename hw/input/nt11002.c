@@ -110,7 +110,7 @@ static int nt_i2c_event(I2CSlave *i2c, enum i2c_event event)
 {
     nt11002_state *s = NT11002(i2c);
 
-    printf("nt11002 i2c event recieved!\n");
+    //printf("nt11002 i2c event recieved!\n");
     
     switch (event) {
     case I2C_START_RECV:
@@ -129,7 +129,7 @@ static int nt_i2c_event(I2CSlave *i2c, enum i2c_event event)
 static int nt_i2c_rx(I2CSlave *i2c)
 {
     //nt11002_state *s = NT11002(i2c);
-    printf("nt11002: I RECIEVED SOME CRAP\n");
+    //printf("nt11002: I RECIEVED SOME CRAP\n");
 
     return 0;
     //return nt_read(s, s->reg, s->i2c_cycle ++);
@@ -137,7 +137,7 @@ static int nt_i2c_rx(I2CSlave *i2c)
 
 static int nt_i2c_tx(I2CSlave *i2c, uint8_t data)
 {
-    printf("nt11002: Recieved data: %x\n", data);
+    //printf("nt11002: Recieved data: %x\n", data);
 
     return 0;
 }

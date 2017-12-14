@@ -266,7 +266,6 @@ static void S3C2416_lcd_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->iomem, OBJECT(s), &S3C2416_lcd_ops, s, "s3c2416_lcd", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
-    //qdev_init_gpio_in(dev, pl110_mux_ctrl_set, 1);
     s->con = graphic_console_init(dev, 0, &S3C2416_lcd_gfx_ops, s);
     qemu_console_resize(s->con, s->cols, s->rows);
 }

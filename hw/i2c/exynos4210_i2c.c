@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Exynos4210 I2C Bus Serial Interface Emulation
  *
  *  Copyright (C) 2012 Samsung Electronics Co Ltd.
@@ -26,7 +26,7 @@
 #include "hw/i2c/i2c.h"
 
 #ifndef EXYNOS4_I2C_DEBUG
-#define EXYNOS4_I2C_DEBUG                 0 
+#define EXYNOS4_I2C_DEBUG                 0
 #endif
 
 #define TYPE_EXYNOS4_I2C                  "exynos4210.i2c"
