@@ -155,6 +155,11 @@ static void prime_init(MachineState *machine)
     dev = i2c_create_slave(i2c, "nt11002", 0x1);
     qdev_connect_gpio_out(dev, 0, gpio_irq[0]);
 
+    /* --- ADC --- */
+    dev = qdev_create(NULL, "s3c2416-adc");
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x58000000);
+
     // Load boot code into SRAM
     /* FIXME use a qdev drive property instead of drive_get() */
     DriveInfo *nand = drive_get(IF_MTD, 0, 0);
