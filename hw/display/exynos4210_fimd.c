@@ -1071,7 +1071,7 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
     }
 
     fb_start_addr = w->buf_start[fimd_get_buffer_id(w)];
-    w->fb_len = fb_mapped_len = w->buf_end[fimd_get_buffer_id(w)] - (fb_start_addr & 0x00FFFFFF);
+    w->fb_len = fb_mapped_len = (w->buf_end[fimd_get_buffer_id(w)] & 0x00FFFFFF) - (fb_start_addr & 0x00FFFFFF); 
     
     /*fb_start_addr = w->buf_start[fimd_get_buffer_id(w)];
      Total number of bytes of virtual screen used by current window /
@@ -1113,7 +1113,7 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
 
          fb_mapped_len = (width * height * bpp) / 8;
      } */
-     w->fb_len = fb_mapped_len;
+     
     /* TODO: add .exit and unref the region there.  Not needed yet since sysbus
      * does not support hot-unplug.
      */
@@ -1248,8 +1248,12 @@ static void exynos4210_fimd_update(void *opaque)
     for (i = 0; i < NUM_OF_WINDOWS; i++) {
         w = &s->window[i];
         if ((w->wincon & FIMD_WINCON_ENWIN) && w->host_fb_addr) {
-            scrn_height = w->rightbot_y - w->lefttop_y + 1;
+            scrn_height = w->rightbot_y - w->lefttop_y + 1;            
             scrn_width = w->virtpage_width;
+            
+            if (!scrn_width)
+                scrn_width = w->fb_len / scrn_height;
+                        
             /* Total width of virtual screen page in bytes */
             inc_size = scrn_width + w->virtpage_offsize;
             memory_region_sync_dirty_bitmap(w->mem_section.mr);
@@ -1469,13 +1473,13 @@ static void exynos4210_fimd_write(void *opaque, hwaddr offset,
         w = (offset - FIMD_VIDWADD1_START) >> 3;
         i = ((offset - FIMD_VIDWADD1_START) >> 2) & 1;
         if (i == fimd_get_buffer_id(&s->window[w]) &&
-                s->window[w].buf_end[i] != (val & 0x00FFFFFF)) {
-            s->window[w].buf_end[i] = (val & 0x00FFFFFF);
+                s->window[w].buf_end[i] != val) {
+            s->window[w].buf_end[i] = val;
             fimd_update_memory_section(s, w);
         }
         break;
     case FIMD_VIDWADD2_START ... FIMD_VIDWADD2_END:
-        w = (offset - FIMD_VIDWADD2_START) >> 2;
+        w = (((offset - FIMD_VIDWADD2_START) >> 2) & 1);
         if (((val & FIMD_VIDWADD2_PAGEWIDTH) != s->window[w].virtpage_width) ||
             (((val >> FIMD_VIDWADD2_OFFSIZE_SHIFT) & FIMD_VIDWADD2_OFFSIZE) !=
                         s->window[w].virtpage_offsize)) {
