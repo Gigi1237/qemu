@@ -68,7 +68,7 @@
 #define FIMD_VIDCON0_ENVID_F        (1 << 0)
 #define FIMD_VIDCON0_ENVID          (1 << 1)
 #define FIMD_VIDCON0_ENVID_MASK     ((1 << 0) | (1 << 1))
-#define FIMD_VIDCON1_ROMASK         0x07FFE000
+#define FIMD_VIDCON1_ROMASK         0x07FFF800
 
 /* Video time control registers */
 #define FIMD_VIDTCON_START          0x8
@@ -80,33 +80,26 @@
 /* Window control registers */
 #define FIMD_WINCON_START           0x0014
 #define FIMD_WINCON_END             0x0018
-#define FIMD_WINCON_ROMASK          0x82200000
+#define FIMD_WINCON_ROMASK          0x1000000
 #define FIMD_WINCON_ENWIN           (1 << 0)
 #define FIMD_WINCON_BLD_PIX         (1 << 6)
 #define FIMD_WINCON_ALPHA_MUL       (1 << 7)
 #define FIMD_WINCON_ALPHA_SEL       (1 << 1)
-#define FIMD_WINCON_SWAP            0x078000
-#define FIMD_WINCON_SWAP_SHIFT      15
-#define FIMD_WINCON_SWAP_WORD       0x1
-#define FIMD_WINCON_SWAP_HWORD      0x2
-#define FIMD_WINCON_SWAP_BYTE       0x4
-#define FIMD_WINCON_SWAP_BITS       0x8
-#define FIMD_WINCON_BUFSTAT_L       (1 << 21)
-#define FIMD_WINCON_BUFSTAT_H       (1 << 31)
-#define FIMD_WINCON_BUFSTATUS       ((1 << 21) | (1 << 31))
-#define FIMD_WINCON_BUF0_STAT       ((0 << 21) | (0 << 31))
-#define FIMD_WINCON_BUF1_STAT       ((1 << 21) | (0 << 31))
-#define FIMD_WINCON_BUF2_STAT       ((0 << 21) | (1 << 31))
-#define FIMD_WINCON_BUFSELECT       ((1 << 20) | (1 << 30))
-#define FIMD_WINCON_BUF0_SEL        ((0 << 20) | (0 << 30))
-#define FIMD_WINCON_BUF1_SEL        ((1 << 20) | (0 << 30))
-#define FIMD_WINCON_BUF2_SEL        ((0 << 20) | (1 << 30))
-#define FIMD_WINCON_BUFMODE         (1 << 14)
-#define IS_PALETTIZED_MODE(w)       (w->wincon & 0xC)
+#define FIMD_WINCON_SWAP            0x070000
+#define FIMD_WINCON_SWAP_SHIFT      16
+#define FIMD_WINCON_SWAP_HWORD      0x1
+#define FIMD_WINCON_SWAP_BYTE       0x2
+#define FIMD_WINCON_SWAP_BITS       0x4
+#define FIMD_WINCON_BUFSTATUS       (1 << 24)
+#define FIMD_WINCON_BUF0_STAT       (0 << 24)
+#define FIMD_WINCON_BUF1_STAT       (1 << 24)
+#define FIMD_WINCON_BUFSELECT       (1 << 23)
+#define FIMD_WINCON_BUF0_SEL        (0 << 23)
+#define FIMD_WINCON_BUF1_SEL        (1 << 23)
 #define PAL_MODE_WITH_ALPHA(x)       ((x) == 7)
 #define WIN_BPP_MODE(w)             ((w->wincon >> 2) & 0xF)
 #define WIN_BPP_MODE_WITH_ALPHA(w)     \
-    (WIN_BPP_MODE(w) == 0xD || WIN_BPP_MODE(w) == 0xE)
+    (WIN_BPP_MODE(w) == 0xD)
 
 /* Shadow control register */
 #define FIMD_SHADOWCON              0x0034
@@ -136,20 +129,19 @@
 #define FIMD_VIDWADD2_OFFSIZE_SHIFT 13
 
 /* Video interrupt control registers */
-#define FIMD_VIDINTCON0             0x130
-#define FIMD_VIDINTCON1             0x134
+#define FIMD_VIDINTCON0             0xAC
 
 /* Window color key registers */
-#define FIMD_WKEYCON_START          0x140
-#define FIMD_WKEYCON_END            0x15C
+#define FIMD_WKEYCON_START          0xB0
+#define FIMD_WKEYCON_END            0xCC
 #define FIMD_WKEYCON0_COMPKEY       0x00FFFFFF
 #define FIMD_WKEYCON0_CTL_SHIFT     24
 #define FIMD_WKEYCON0_DIRCON        (1 << 24)
 #define FIMD_WKEYCON0_KEYEN         (1 << 25)
 #define FIMD_WKEYCON0_KEYBLEN       (1 << 26)
 /* Window color key alpha control register */
-#define FIMD_WKEYALPHA_START        0x160
-#define FIMD_WKEYALPHA_END          0x16C
+//#define FIMD_WKEYALPHA_START        0x160
+//#define FIMD_WKEYALPHA_END          0x16C
 
 /* Dithering control register */
 #define FIMD_DITHMODE               0x170
@@ -161,31 +153,18 @@
 #define FIMD_VIDWALPHA_END          0x240
 
 /* Window color map registers */
-#define FIMD_WINMAP_START           0x180
-#define FIMD_WINMAP_END             0x190
+#define FIMD_WINMAP_START           0xD0
+#define FIMD_WINMAP_END             0xD4
 #define FIMD_WINMAP_EN              (1 << 24)
 #define FIMD_WINMAP_COLOR_MASK      0x00FFFFFF
 
 /* Window palette control registers */
-#define FIMD_WPALCON_HIGH           0x019C
-#define FIMD_WPALCON_LOW            0x01A0
+#define FIMD_WPALCON                0xE4
 #define FIMD_WPALCON_UPDATEEN       (1 << 9)
-#define FIMD_WPAL_W0PAL_L           0x07
-#define FIMD_WPAL_W0PAL_L_SHT        0
-#define FIMD_WPAL_W1PAL_L           0x07
-#define FIMD_WPAL_W1PAL_L_SHT       3
-#define FIMD_WPAL_W2PAL_L           0x01
-#define FIMD_WPAL_W2PAL_L_SHT       6
-#define FIMD_WPAL_W2PAL_H           0x06
-#define FIMD_WPAL_W2PAL_H_SHT       8
-#define FIMD_WPAL_W3PAL_L           0x01
-#define FIMD_WPAL_W3PAL_L_SHT       7
-#define FIMD_WPAL_W3PAL_H           0x06
-#define FIMD_WPAL_W3PAL_H_SHT       12
-#define FIMD_WPAL_W4PAL_L           0x01
-#define FIMD_WPAL_W4PAL_L_SHT       8
-#define FIMD_WPAL_W4PAL_H           0x06
-#define FIMD_WPAL_W4PAL_H_SHT       16
+#define FIMD_WPAL_W0PAL           0x07
+#define FIMD_WPAL_W0PAL_SHT       0
+#define FIMD_WPAL_W1PAL           0x07
+#define FIMD_WPAL_W1PAL_SHT       3
 
 /* Trigger control registers */
 #define FIMD_TRIGCON                0x01A4
@@ -211,9 +190,9 @@
 #define FIMD_HUEOFFSET              0x020C
 
 /* Video interrupt control registers */
-#define FIMD_VIDINT_INTFIFOPEND     (1 << 0)
-#define FIMD_VIDINT_INTFRMPEND      (1 << 1)
-#define FIMD_VIDINT_INTI80PEND      (1 << 2)
+#define FIMD_VIDINT_IRQ_FIFO        2
+#define FIMD_VIDINT_IRQ_FRM         1
+#define FIMD_VIDINT_IRQ_I80         0
 #define FIMD_VIDINT_INTEN           (1 << 0)
 #define FIMD_VIDINT_INTFIFOEN       (1 << 1)
 #define FIMD_VIDINT_INTFRMEN        (1 << 12)
@@ -299,13 +278,13 @@ typedef struct {
     QemuConsole *console;
     qemu_irq irq[3];
 
-    uint32_t vidcon[4];     /* Video main control registers 0-3 */
-    uint32_t vidtcon[4];    /* Video time control registers 0-3 */
+    uint32_t vidcon[2];     /* Video main control registers 0-1 */
+    uint32_t vidtcon[3];    /* Video time control registers 0-2 */
     uint32_t shadowcon;     /* Window shadow control register */
     uint32_t winchmap;      /* Channel mapping control register */
-    uint32_t vidintcon[2];  /* Video interrupt control registers */
+    uint32_t vidintcon;  /* Video interrupt control registers */
     uint32_t dithmode;      /* Dithering control register */
-    uint32_t wpalcon[2];    /* Window palette control registers */
+    uint32_t wpalcon;    /* Window palette control registers */
     uint32_t trigcon;       /* Trigger control register */
     uint32_t i80ifcon[4];   /* I80 interface control registers */
     uint32_t colorgaincon;  /* Color gain control register */
@@ -351,11 +330,6 @@ static inline void fimd_swap_data(unsigned int swap_ctl, uint64_t *data)
             ((x & 0xFFFF000000000000ULL) >> 48);
     }
 
-    if (swap_ctl & FIMD_WINCON_SWAP_WORD) {
-        x = ((x & 0x00000000FFFFFFFFULL) << 32) |
-            ((x & 0xFFFFFFFF00000000ULL) >> 32);
-    }
-
     *data = x;
 }
 
@@ -382,7 +356,7 @@ static void N(uint32_t pixel, rgba *p) \
     p->a = (pixel & 0x1); \
 }
 
-DEF_PIXEL_TO_RGB_A1(pixel_a444_to_rgb, 4, 4, 4)
+//DEF_PIXEL_TO_RGB_A1(pixel_a444_to_rgb, 4, 4, 4)
 DEF_PIXEL_TO_RGB_A1(pixel_a555_to_rgb, 5, 5, 5)
 DEF_PIXEL_TO_RGB_A1(pixel_a666_to_rgb, 6, 6, 6)
 DEF_PIXEL_TO_RGB_A1(pixel_a665_to_rgb, 6, 6, 5)
@@ -405,7 +379,7 @@ static void N(uint32_t pixel, rgba *p) \
 }
 
 DEF_PIXEL_TO_RGB_A0(pixel_565_to_rgb,  5, 6, 5)
-DEF_PIXEL_TO_RGB_A0(pixel_555_to_rgb,  5, 5, 5)
+//DEF_PIXEL_TO_RGB_A0(pixel_555_to_rgb,  5, 5, 5)
 DEF_PIXEL_TO_RGB_A0(pixel_666_to_rgb,  6, 6, 6)
 DEF_PIXEL_TO_RGB_A0(pixel_888_to_rgb,  8, 8, 8)
 
@@ -427,7 +401,7 @@ static void N(uint32_t pixel, rgba *p) \
     p->a = p->a | (p->a << 8) | (p->a << 16); \
 }
 
-DEF_PIXEL_TO_RGB_A(pixel_4444_to_rgb, 4, 4, 4, 4)
+//DEF_PIXEL_TO_RGB_A(pixel_4444_to_rgb, 4, 4, 4, 4)
 DEF_PIXEL_TO_RGB_A(pixel_8888_to_rgb, 8, 8, 8, 8)
 
 /* Lookup table to extent 2-bit color component to 8 bit */
@@ -502,28 +476,12 @@ exynos4210_fimd_palette_format(Exynos4210fimdState *s, int window)
 
     switch (window) {
     case 0:
-        ret = (s->wpalcon[1] >> FIMD_WPAL_W0PAL_L_SHT) & FIMD_WPAL_W0PAL_L;
-        if (ret != 7) {
-            ret = 6 - ret;
-        }
+        ret = (s->wpalcon >> FIMD_WPAL_W0PAL_SHT) & FIMD_WPAL_W0PAL;
+        ret = 6 - ret;
         break;
     case 1:
-        ret = (s->wpalcon[1] >> FIMD_WPAL_W1PAL_L_SHT) & FIMD_WPAL_W1PAL_L;
-        if (ret != 7) {
-            ret = 6 - ret;
-        }
-        break;
-    case 2:
-        ret = ((s->wpalcon[0] >> FIMD_WPAL_W2PAL_H_SHT) & FIMD_WPAL_W2PAL_H) |
-            ((s->wpalcon[1] >> FIMD_WPAL_W2PAL_L_SHT) & FIMD_WPAL_W2PAL_L);
-        break;
-    case 3:
-        ret = ((s->wpalcon[0] >> FIMD_WPAL_W3PAL_H_SHT) & FIMD_WPAL_W3PAL_H) |
-            ((s->wpalcon[1] >> FIMD_WPAL_W3PAL_L_SHT) & FIMD_WPAL_W3PAL_L);
-        break;
-    case 4:
-        ret = ((s->wpalcon[0] >> FIMD_WPAL_W4PAL_H_SHT) & FIMD_WPAL_W4PAL_H) |
-            ((s->wpalcon[1] >> FIMD_WPAL_W4PAL_L_SHT) & FIMD_WPAL_W4PAL_L);
+        ret = (s->wpalcon >> FIMD_WPAL_W1PAL_SHT) & FIMD_WPAL_W1PAL;
+        ret = 6 - ret;
         break;
     default:
         hw_error("exynos4210.fimd: incorrect window number %d\n", window);
@@ -1008,19 +966,6 @@ static void exynos4210_fimd_update_win_bppmode(Exynos4210fimdState *s, int win)
             w->pixel_to_rgb = pixel_a888_to_rgb;
         }
         break;
-    case 14:
-        w->draw_line = draw_line_16;
-        if ((w->wincon & FIMD_WINCON_BLD_PIX) && (w->wincon &
-                FIMD_WINCON_ALPHA_SEL)) {
-            w->pixel_to_rgb = pixel_4444_to_rgb;
-        } else {
-            w->pixel_to_rgb = pixel_a444_to_rgb;
-        }
-        break;
-    case 15:
-        w->draw_line = draw_line_16;
-        w->pixel_to_rgb = pixel_555_to_rgb;
-        break;
     }
 }
 
@@ -1056,10 +1001,6 @@ static const char *exynos4210_fimd_get_bppmode(int mode_code)
         return "Unpacked 24 bpp (non-palettized A:1-R:8-G:8-B:7)";
     case 13:
         return "Unpacked 25 bpp (non-palettized A:1-R:8-G:8-B:8)";
-    case 14:
-        return "Unpacked 13 bpp (non-palettized A:1-R:4-G:4-B:4)";
-    case 15:
-        return "Unpacked 15 bpp (non-palettized R:5-G:5-B:5)";
     default:
         return "Non-existing bpp mode";
     }
@@ -1097,8 +1038,6 @@ static inline int fimd_get_buffer_id(Exynos4210fimdWindow *w)
         return 0;
     case FIMD_WINCON_BUF1_STAT:
         return 1;
-    case FIMD_WINCON_BUF2_STAT:
-        return 2;
     default:
         DPRINT_ERROR("Non-existent buffer index\n");
         return 0;
@@ -1131,7 +1070,10 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
     }
 
     fb_start_addr = w->buf_start[fimd_get_buffer_id(w)];
-    /* Total number of bytes of virtual screen used by current window */
+    w->fb_len = fb_mapped_len = w->buf_end[fimd_get_buffer_id(w)] - (fb_start_addr & 0x00FFFFFF);
+    
+    /*fb_start_addr = w->buf_start[fimd_get_buffer_id(w)];
+     Total number of bytes of virtual screen used by current window /
      fb_mapped_len = (w->virtpage_width + w->virtpage_offsize) *
             (w->rightbot_y - w->lefttop_y + 1);
 
@@ -1169,7 +1111,7 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
          }
 
          fb_mapped_len = (width * height * bpp) / 8;
-     }
+     } */
      w->fb_len = fb_mapped_len;
     /* TODO: add .exit and unref the region there.  Not needed yet since sysbus
      * does not support hot-unplug.
@@ -1241,32 +1183,20 @@ static inline uint32_t pack_upper_4(uint32_t x)
             ((x & 0xF0) >> 4)) & 0xFFF;
 }
 
-static void exynos4210_fimd_update_irq(Exynos4210fimdState *s)
+static void exynos4210_fimd_update_irq(Exynos4210fimdState *s, uint8_t IRQ, bool raise)
 {
-    if (!(s->vidintcon[0] & FIMD_VIDINT_INTEN)) {
+    if (!(s->vidintcon & FIMD_VIDINT_INTEN)) {
         qemu_irq_lower(s->irq[0]);
         qemu_irq_lower(s->irq[1]);
         qemu_irq_lower(s->irq[2]);
         return;
     }
-    if ((s->vidintcon[0] & FIMD_VIDINT_INTFIFOEN) &&
-            (s->vidintcon[1] & FIMD_VIDINT_INTFIFOPEND)) {
-        qemu_irq_raise(s->irq[0]);
-    } else {
-        qemu_irq_lower(s->irq[0]);
-    }
-    if ((s->vidintcon[0] & FIMD_VIDINT_INTFRMEN) &&
-            (s->vidintcon[1] & FIMD_VIDINT_INTFRMPEND)) {
-        qemu_irq_raise(s->irq[1]);
-    } else {
-        qemu_irq_lower(s->irq[1]);
-    }
-    if ((s->vidintcon[0] & FIMD_VIDINT_I80IFDONE) &&
-            (s->vidintcon[1] & FIMD_VIDINT_INTI80PEND)) {
-        qemu_irq_raise(s->irq[2]);
-    } else {
-        qemu_irq_lower(s->irq[2]);
-    }
+    
+    
+    if (raise)
+        qemu_irq_raise(s->irq[IRQ]);
+    else
+        qemu_irq_lower(s->irq[IRQ]);
 }
 
 static void exynos4210_update_resolution(Exynos4210fimdState *s)
@@ -1365,11 +1295,10 @@ static void exynos4210_fimd_update(void *opaque)
         dpy_gfx_update(s->console, 0, 0, global_width, global_height);
     }
     s->invalidate = false;
-    s->vidintcon[1] |= FIMD_VIDINT_INTFRMPEND;
+    exynos4210_fimd_update_irq(s, FIMD_VIDINT_IRQ_FRM, true);
     if ((s->vidcon[0] & FIMD_VIDCON0_ENVID_F) == 0) {
         exynos4210_fimd_enable(s, false);
     }
-    exynos4210_fimd_update_irq(s);
 }
 
 static void exynos4210_fimd_reset(DeviceState *d)
@@ -1451,12 +1380,7 @@ static void exynos4210_fimd_write(void *opaque, hwaddr offset,
             val &= ~FIMD_WINCON_BUFSTATUS;
             break;
         case FIMD_WINCON_BUF1_SEL:
-            val = (val & ~FIMD_WINCON_BUFSTAT_H) | FIMD_WINCON_BUFSTAT_L;
-            break;
-        case FIMD_WINCON_BUF2_SEL:
-            if (val & FIMD_WINCON_BUFMODE) {
-                val = (val & ~FIMD_WINCON_BUFSTAT_L) | FIMD_WINCON_BUFSTAT_H;
-            }
+            val |= FIMD_WINCON_BUF1_SEL;
             break;
         default:
             break;
@@ -1543,7 +1467,11 @@ static void exynos4210_fimd_write(void *opaque, hwaddr offset,
     case FIMD_VIDWADD1_START ... FIMD_VIDWADD1_END:
         w = (offset - FIMD_VIDWADD1_START) >> 3;
         i = ((offset - FIMD_VIDWADD1_START) >> 2) & 1;
-        s->window[w].buf_end[i] = val;
+        if (i == fimd_get_buffer_id(&s->window[w]) &&
+                s->window[w].buf_end[i] != (val & 0x00FFFFFF)) {
+            s->window[w].buf_end[i] = (val & 0x00FFFFFF);
+            fimd_update_memory_section(s, w);
+        }
         break;
     case FIMD_VIDWADD2_START ... FIMD_VIDWADD2_END:
         w = (offset - FIMD_VIDWADD2_START) >> 2;
@@ -1557,21 +1485,17 @@ static void exynos4210_fimd_write(void *opaque, hwaddr offset,
         }
         break;
     case FIMD_VIDINTCON0:
-        s->vidintcon[0] = val;
-        break;
-    case FIMD_VIDINTCON1:
-        s->vidintcon[1] &= ~(val & 7);
-        exynos4210_fimd_update_irq(s);
+        s->vidintcon = val;
         break;
     case FIMD_WKEYCON_START ... FIMD_WKEYCON_END:
         w = ((offset - FIMD_WKEYCON_START) >> 3) + 1;
         i = ((offset - FIMD_WKEYCON_START) >> 2) & 1;
         s->window[w].keycon[i] = val;
         break;
-    case FIMD_WKEYALPHA_START ... FIMD_WKEYALPHA_END:
+   /* case FIMD_WKEYALPHA_START ... FIMD_WKEYALPHA_END:
         w = ((offset - FIMD_WKEYALPHA_START) >> 2) + 1;
         s->window[w].keyalpha = val;
-        break;
+        break; */
     case FIMD_DITHMODE:
         s->dithmode = val;
         break;
@@ -1586,10 +1510,9 @@ static void exynos4210_fimd_write(void *opaque, hwaddr offset,
             exynos4210_fimd_update(s);
         }
         break;
-    case FIMD_WPALCON_HIGH ... FIMD_WPALCON_LOW:
-        i = (offset - FIMD_WPALCON_HIGH) >> 2;
-        s->wpalcon[i] = val;
-        if (s->wpalcon[1] & FIMD_WPALCON_UPDATEEN) {
+    case FIMD_WPALCON:
+        s->wpalcon = val;
+        if (s->wpalcon & FIMD_WPALCON_UPDATEEN) {
             for (w = 0; w < NUM_OF_WINDOWS; w++) {
                 exynos4210_fimd_update_win_bppmode(s, w);
                 fimd_update_get_alpha(s, w);
@@ -1764,23 +1687,21 @@ static uint64_t exynos4210_fimd_read(void *opaque, hwaddr offset,
         return s->window[w].buf_end[i];
     case FIMD_VIDWADD2_START ... FIMD_VIDWADD2_END:
         w = (offset - FIMD_VIDWADD2_START) >> 2;
-        return s->window[w].virtpage_width | (s->window[w].virtpage_offsize <<
-            FIMD_VIDWADD2_OFFSIZE_SHIFT);
-    case FIMD_VIDINTCON0 ... FIMD_VIDINTCON1:
-        return s->vidintcon[(offset - FIMD_VIDINTCON0) >> 2];
+    case FIMD_VIDINTCON0:
+        return s->vidintcon;
     case FIMD_WKEYCON_START ... FIMD_WKEYCON_END:
         w = ((offset - FIMD_WKEYCON_START) >> 3) + 1;
         i = ((offset - FIMD_WKEYCON_START) >> 2) & 1;
         return s->window[w].keycon[i];
-    case FIMD_WKEYALPHA_START ... FIMD_WKEYALPHA_END:
+ /*   case FIMD_WKEYALPHA_START ... FIMD_WKEYALPHA_END:
         w = ((offset - FIMD_WKEYALPHA_START) >> 2) + 1;
-        return s->window[w].keyalpha;
+        return s->window[w].keyalpha; */
     case FIMD_DITHMODE:
         return s->dithmode;
     case FIMD_WINMAP_START ... FIMD_WINMAP_END:
         return s->window[(offset - FIMD_WINMAP_START) >> 2].winmap;
-    case FIMD_WPALCON_HIGH ... FIMD_WPALCON_LOW:
-        return s->wpalcon[(offset - FIMD_WPALCON_HIGH) >> 2];
+    case FIMD_WPALCON:
+        return s->wpalcon;
     case FIMD_TRIGCON:
         return s->trigcon;
     case FIMD_I80IFCON_START ... FIMD_I80IFCON_END:
@@ -1914,13 +1835,13 @@ static const VMStateDescription exynos4210_fimd_vmstate = {
     .minimum_version_id = 1,
     .post_load = exynos4210_fimd_load,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(vidcon, Exynos4210fimdState, 4),
-        VMSTATE_UINT32_ARRAY(vidtcon, Exynos4210fimdState, 4),
+        VMSTATE_UINT32_ARRAY(vidcon, Exynos4210fimdState, 2),
+        VMSTATE_UINT32_ARRAY(vidtcon, Exynos4210fimdState, 3),
         VMSTATE_UINT32(shadowcon, Exynos4210fimdState),
         VMSTATE_UINT32(winchmap, Exynos4210fimdState),
-        VMSTATE_UINT32_ARRAY(vidintcon, Exynos4210fimdState, 2),
+        VMSTATE_UINT32(vidintcon, Exynos4210fimdState),
         VMSTATE_UINT32(dithmode, Exynos4210fimdState),
-        VMSTATE_UINT32_ARRAY(wpalcon, Exynos4210fimdState, 2),
+        VMSTATE_UINT32(wpalcon, Exynos4210fimdState),
         VMSTATE_UINT32(trigcon, Exynos4210fimdState),
         VMSTATE_UINT32_ARRAY(i80ifcon, Exynos4210fimdState, 4),
         VMSTATE_UINT32(colorgaincon, Exynos4210fimdState),
