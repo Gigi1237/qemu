@@ -96,6 +96,7 @@
 #define FIMD_WINCON_BUFSELECT       (1 << 23)
 #define FIMD_WINCON_BUF0_SEL        (0 << 23)
 #define FIMD_WINCON_BUF1_SEL        (1 << 23)
+#define IS_PALETTIZED_MODE(w)       (w->wincon & 0xC)
 #define PAL_MODE_WITH_ALPHA(x)       ((x) == 7)
 #define WIN_BPP_MODE(w)             ((w->wincon >> 2) & 0xF)
 #define WIN_BPP_MODE_WITH_ALPHA(w)     \
