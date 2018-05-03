@@ -1071,7 +1071,14 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
     }
 
     fb_start_addr = w->buf_start[fimd_get_buffer_id(w)];
-    w->fb_len = fb_mapped_len = (w->buf_end[fimd_get_buffer_id(w)] & 0x00FFFFFF) - (fb_start_addr & 0x00FFFFFF); 
+    
+    fb_mapped_len = (w->virtpage_width + w->virtpage_offsize) *
+            (w->rightbot_y - w->lefttop_y + 1);
+    
+    if (!fb_mapped_len)
+        fb_mapped_len = ((w->buf_end[fimd_get_buffer_id(w)] & 0x00FFFFFF) - (fb_start_addr & 0x00FFFFFF)) & 0x00FFFFFF; 
+    
+    w->fb_len = fb_mapped_len;
     
     /*fb_start_addr = w->buf_start[fimd_get_buffer_id(w)];
      Total number of bytes of virtual screen used by current window /

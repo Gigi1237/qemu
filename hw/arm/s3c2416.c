@@ -16,6 +16,8 @@
 #include "sysemu/block-backend.h"
 #include "hw/i2c/i2c.h"
 #include "hw/arm/s3c2416.h"
+#include "hw/usb/hcd-ehci.h"
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,14 +51,17 @@ static void prime_init(MachineState *machine)
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *dram = g_new(MemoryRegion, 4);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
+    MemoryRegion *boot = g_new(MemoryRegion, 1);
 
-    uint8_t *sram_ptr = g_new0(uint8_t, 0x10000);
+    uint8_t *boot_ptr = g_new0(uint8_t, 0x10000);
 	uint8_t *dram_ptr = g_new0(uint8_t, 0x02000000);
-    assert(sram_ptr);
+    uint8_t *sram_ptr = g_new0(uint8_t, 0xe000);
+    assert(boot_ptr);
 	assert(dram_ptr);
+    assert(sram_ptr);
 	
-    memory_region_init_ram_ptr(sram, NULL, "prime.sram", 0x00010000, sram_ptr);
-    memory_region_add_subregion(address_space_mem, 0x00000000, sram);
+    memory_region_init_ram_ptr(boot, NULL, "prime.boot", 0x00010000, boot_ptr);
+    memory_region_add_subregion(address_space_mem, 0x00000000, boot);
 
 	memory_region_init_ram_ptr(dram, NULL, "prime.dram0", 0x02000000, dram_ptr);
     memory_region_add_subregion(address_space_mem, 0x30000000, dram);
@@ -66,6 +71,9 @@ static void prime_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, 0x34000000, &dram[2]);
 	memory_region_init_ram_ptr(&dram[3], NULL, "prime.dram3", 0x02000000, dram_ptr);
     memory_region_add_subregion(address_space_mem, 0x36000000, &dram[3]);
+    
+    memory_region_init_ram_ptr(sram, NULL, "prime.sram", 0xe000, sram_ptr);
+    memory_region_add_subregion(address_space_mem, 0x40000000, sram);
 
 
     DeviceState *dev;
@@ -132,9 +140,9 @@ static void prime_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x4C000000);
 
 	/* --- MEMC --- */
-    dev = qdev_create(NULL, "s3c2416-memc");
-    qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x48000000);
+    //dev = qdev_create(NULL, "s3c2416-memc");
+    //qdev_init_nofail(dev);
+    //sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x48000000);
 
 	/* --- PWM --- */
     sysbus_create_varargs("exynos4210.pwm", 0x51000000,
@@ -146,9 +154,9 @@ static void prime_init(MachineState *machine)
         NULL);
 
 	/* --- WTCON --- */
-    dev = qdev_create(NULL, "s3c2416-wtcon");
-    qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x53000000);
+    //dev = qdev_create(NULL, "s3c2416-wtcon");
+    //qdev_init_nofail(dev);
+    //sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x53000000);
 
     /* --- RTC --- */
     sysbus_create_varargs("exynos4210.rtc", 0x57000000, rtc_irq, tick_irq, NULL);
@@ -165,16 +173,16 @@ static void prime_init(MachineState *machine)
     qdev_connect_gpio_out(dev, 0, gpio_irq[0]);
 
     /* --- ADC --- */
-    dev = qdev_create(NULL, "s3c2416-adc");
-    qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x58000000);
+    //dev = qdev_create(NULL, "s3c2416-adc");
+    //qdev_init_nofail(dev);
+    //sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x58000000);
 
     // Load boot code into SRAM
     /* FIXME use a qdev drive property instead of drive_get() */
     DriveInfo *nand = drive_get(IF_MTD, 0, 0);
     if (nand) {
         int ret = blk_pread(blk_by_legacy_dinfo(nand), 0x0,
-                            sram_ptr, 0x2000);
+                            boot_ptr, 0x2000);
         assert(ret >= 0);
     }
     else if (!machine->kernel_filename) {
