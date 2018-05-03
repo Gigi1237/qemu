@@ -7,6 +7,16 @@
 #define TYPE_S3C2416_PWM "s3c2416-pwm"
 #define S3C2416_PWM(obj) OBJECT_CHECK(s3c2416_pwm_state, (obj), TYPE_S3C2416_PWM)
 
+#ifndef NDEBUG_S3C2416_PWM
+
+#define DPRINT(fmt, args...)        \
+        do {fprintf(stderr, "S3C2416_PWM: "fmt, ## args); } while (0)
+
+#else
+#define DPRINT(fmt, args...)        \
+        do { } while (0)
+#endif
+
 typedef struct {
     SysBusDevice parent_obj;
 
@@ -37,6 +47,8 @@ static uint64_t s3c2416_pwm_read(void *opaque, hwaddr offset,
 {
     s3c2416_pwm_state *s = (s3c2416_pwm_state*)opaque;
     uint32_t val;
+    
+    DPRINT("read offset 0x%08llx\n", offset);
     
     switch (offset)
     {
@@ -140,6 +152,9 @@ static void s3c2416_pwm_write(void *opaque, hwaddr offset,
 {
     s3c2416_pwm_state *s = (s3c2416_pwm_state*)opaque;
     
+    DPRINT("write offset 0x%08llx, value=%llu(0x%08llx)\n", offset,
+        (long long unsigned int)val, (long long unsigned int)val);
+        
     switch (offset)
     {
     // TCFG0

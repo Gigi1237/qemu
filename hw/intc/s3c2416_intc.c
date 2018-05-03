@@ -261,7 +261,7 @@ static void S3C2416_intc_write(void *opaque, hwaddr offset,
         i = 1;
         reg = offset - 0x40;
     }
-    DPRINT("interrupt write reg: %04x val: %lx\n",reg,val)
+    DPRINT("interrupt write reg: %04x val: %llx\n",reg,val)
     switch (reg)
     {
     /* SRCPND */
