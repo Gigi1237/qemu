@@ -113,7 +113,11 @@ static void prime_init(MachineState *machine)
 	
 	qemu_irq i2c_irq = qdev_get_gpio_in(dev, INT_IIC0);
     
-    qemu_irq gpio_irq[2] = {
+    qemu_irq gpio_irq[6] = {
+        qdev_get_gpio_in(dev, EINT0),
+        qdev_get_gpio_in(dev, EINT1),
+        qdev_get_gpio_in(dev, EINT2),
+        qdev_get_gpio_in(dev, EINT3),
         qdev_get_gpio_in(dev, EINT4_7),
         qdev_get_gpio_in(dev, EINT8_15)
     };
@@ -130,9 +134,16 @@ static void prime_init(MachineState *machine)
         NULL);
     
 	/* --- GPIO --- */
-    dev = qdev_create(NULL, "s3c2416-gpio");
-    qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x56000000);
+    dev = sysbus_create_varargs("s3c2416-gpio", 0x56000000,
+        gpio_irq[0],
+        gpio_irq[1],
+        gpio_irq[2],
+        gpio_irq[3],
+        gpio_irq[4],
+        gpio_irq[5],
+        NULL);
+    //qdev_init_nofail(dev);
+    //sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, );
 
 	/* --- SYSC --- */
     dev = qdev_create(NULL, "s3c2416-sysc");

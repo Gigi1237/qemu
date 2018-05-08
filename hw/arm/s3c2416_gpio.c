@@ -29,7 +29,7 @@ typedef struct {
 
     MemoryRegion iomem;
 
-    qemu_irq irq[2];
+    qemu_irq irq[6];
     
     uint32_t GPACON;
     uint32_t GPADAT;
@@ -765,6 +765,26 @@ static uint64_t hp_prime_keymap[Q_KEY_CODE__MAX] = {
 } ;
 #undef GTK_FIX
 
+static int inc_magic(int val)
+{
+    switch (val)
+    {
+        case 2:
+        case 8 ... 14:
+            return val + 1;
+        case 3:
+            return 6;
+        case 6:
+            return 8;
+        case 15:
+        default:
+            return 2;
+            
+    }
+}
+
+static int VV = 2;
+
 static void hp_prime_keyboard_event(DeviceState *dev, QemuConsole *src,
                                InputEvent *evt)
 {
@@ -778,6 +798,23 @@ static void hp_prime_keyboard_event(DeviceState *dev, QemuConsole *src,
     if (qcode >= Q_KEY_CODE__MAX)
         return;
 
+ 
+    if (qcode == Q_KEY_CODE_F10 && key->down) {
+        
+        VV = inc_magic(VV);
+        printf("NEW interrupt value: %i \n", VV);
+    }
+    
+    if (qcode == Q_KEY_CODE_F11 && key->down) {
+        if (VV < 4) {
+            qemu_irq_raise(s->irq[VV]);
+        } else {
+            s->EINTPEND ^= (1 << VV);
+            qemu_irq_raise(s->irq[(VV / 8) + 4]);
+        }
+        printf("Raised IRQ %i\n", VV);
+    }
+    
     if (key->down)
         s->keyboard |= hp_prime_keymap[qcode];
     else
@@ -826,7 +863,10 @@ static void s3c2416_gpio_init(Object *obj)
     qdev_init_gpio_in(DEVICE(obj), S3C2416_gpio_intc_set, 16);
     sysbus_init_irq(sbd, &s->irq[0]);
     sysbus_init_irq(sbd, &s->irq[1]);
-
+    sysbus_init_irq(sbd, &s->irq[2]);
+    sysbus_init_irq(sbd, &s->irq[3]);
+    sysbus_init_irq(sbd, &s->irq[4]);
+    sysbus_init_irq(sbd, &s->irq[5]);
 
     s->GPACON = 0xFFFFFF;
     s->GPADAT = 0x0;
