@@ -50,9 +50,9 @@
 
 #define     EXYNOS4210_RTC_REG_MEM_SIZE     0x0100
 
-#define     INTP            0x0030
 #define     RTCCON          0x0040
-#define     TICCNT          0x0044
+#define     TICCNT_START    0x0044
+#define     TICCNT_END      0x004C
 #define     RTCALM          0x0050
 #define     ALMSEC          0x0054
 #define     ALMMIN          0x0058
@@ -69,7 +69,7 @@
 #define     BCDYEAR         0x0088
 #define     CURTICNT        0x0090
 
-#define     TICK_TIMER_ENABLE   0x0100
+#define     TICK_TIMER_ENABLE   0x0080
 #define     TICNT_THRESHOLD     2
 
 
@@ -92,9 +92,8 @@ typedef struct Exynos4210RTCState {
     MemoryRegion iomem;
 
     /* registers */
-    uint32_t    reg_intp;
     uint32_t    reg_rtccon;
-    uint32_t    reg_ticcnt;
+    uint32_t    reg_ticcnt[3];
     uint32_t    reg_rtcalm;
     uint32_t    reg_almsec;
     uint32_t    reg_almmin;
@@ -116,36 +115,36 @@ typedef struct Exynos4210RTCState {
 
 #define TICCKSEL(value) ((value & (0x0F << 4)) >> 4)
 
-/*** VMState ***/
-static const VMStateDescription vmstate_exynos4210_rtc_state = {
-    .name = "exynos4210.rtc",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(reg_intp, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_rtccon, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_ticcnt, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_rtcalm, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_almsec, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_almmin, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_almhour, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_almday, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_almmon, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_almyear, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_curticcnt, Exynos4210RTCState),
-        VMSTATE_PTIMER(ptimer, Exynos4210RTCState),
-        VMSTATE_PTIMER(ptimer_1Hz, Exynos4210RTCState),
-        VMSTATE_UINT32(freq, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_sec, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_min, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_hour, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_wday, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_mday, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_mon, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_year, Exynos4210RTCState),
-        VMSTATE_END_OF_LIST()
-    }
-};
+///*** VMState ***/
+//static const VMStateDescription vmstate_exynos4210_rtc_state = {
+//    .name = "exynos4210.rtc",
+//    .version_id = 1,
+//    .minimum_version_id = 1,
+//    .fields = (VMStateField[]) {
+//        VMSTATE_UINT32(reg_intp, Exynos4210RTCState),
+//        VMSTATE_UINT32(reg_rtccon, Exynos4210RTCState),
+//        VMSTATE_UINT32(reg_ticcnt, Exynos4210RTCState),
+//        VMSTATE_UINT32(reg_rtcalm, Exynos4210RTCState),
+//        VMSTATE_UINT32(reg_almsec, Exynos4210RTCState),
+//        VMSTATE_UINT32(reg_almmin, Exynos4210RTCState),
+//        VMSTATE_UINT32(reg_almhour, Exynos4210RTCState),
+//        VMSTATE_UINT32(reg_almday, Exynos4210RTCState),
+//        VMSTATE_UINT32(reg_almmon, Exynos4210RTCState),
+//        VMSTATE_UINT32(reg_almyear, Exynos4210RTCState),
+//        VMSTATE_UINT32(reg_curticcnt, Exynos4210RTCState),
+//        VMSTATE_PTIMER(ptimer, Exynos4210RTCState),
+//        VMSTATE_PTIMER(ptimer_1Hz, Exynos4210RTCState),
+//        VMSTATE_UINT32(freq, Exynos4210RTCState),
+//        VMSTATE_INT32(current_tm.tm_sec, Exynos4210RTCState),
+//        VMSTATE_INT32(current_tm.tm_min, Exynos4210RTCState),
+//        VMSTATE_INT32(current_tm.tm_hour, Exynos4210RTCState),
+//        VMSTATE_INT32(current_tm.tm_wday, Exynos4210RTCState),
+//        VMSTATE_INT32(current_tm.tm_mday, Exynos4210RTCState),
+//        VMSTATE_INT32(current_tm.tm_mon, Exynos4210RTCState),
+//        VMSTATE_INT32(current_tm.tm_year, Exynos4210RTCState),
+//        VMSTATE_END_OF_LIST()
+//    }
+//};
 
 #define BCD3DIGITS(x) \
     ((uint32_t)to_bcd((uint8_t)(x % 100)) + \
@@ -182,10 +181,9 @@ static void check_alarm_raise(Exynos4210RTCState *s)
     }
 
     if (alarm_raise) {
-        DPRINTF("ALARM IRQ\n");
+        DPRINTF("ALARM IRQ NOT IMPLEMENTED\n");
         /* set irq status */
-        s->reg_intp |= INTP_ALM_ENABLE;
-        qemu_irq_raise(s->alm_irq);
+        //qemu_irq_raise(s->alm_irq);
     }
 }
 
@@ -272,14 +270,16 @@ static void exynos4210_rtc_tick(void *opaque)
 {
     Exynos4210RTCState *s = (Exynos4210RTCState *)opaque;
 
-    DPRINTF("TICK IRQ\n");
-    /* set irq status */
-    s->reg_intp |= INTP_TICK_ENABLE;
     /* raise IRQ */
     qemu_irq_raise(s->tick_irq);
 
     /* restart timer */
-    ptimer_set_count(s->ptimer, s->reg_ticcnt);
+    uint32_t count = ((s->reg_ticcnt[0] & 0x7F) << 0x8) |
+                              (s->reg_ticcnt[1] & 0xFF) |
+                             ((s->reg_ticcnt[2] & 0x1FFFF) << 0xF);
+    DPRINTF("timer count %ul\n", count);
+    DPRINTF("reg_ticcnt0 %x, reg_ticcnt1 %x, reg_ticcnt2 %x\n", s->reg_ticcnt[0], s->reg_ticcnt[1],s->reg_ticcnt[2]);
+    ptimer_set_count(s->ptimer, count);
     ptimer_run(s->ptimer, 1);
 }
 
@@ -310,16 +310,18 @@ static uint64_t exynos4210_rtc_read(void *opaque, hwaddr offset,
 {
     uint32_t value = 0;
     Exynos4210RTCState *s = (Exynos4210RTCState *)opaque;
-
+    unsigned i;
+    
     switch (offset) {
-    case INTP:
-        value = s->reg_intp;
-        break;
     case RTCCON:
         value = s->reg_rtccon;
         break;
-    case TICCNT:
-        value = s->reg_ticcnt;
+    case TICCNT_START ... TICCNT_END:
+        i = (offset - TICCNT_START) >> 2;
+        if (i == 1) i = 2;
+        if (i == 2) i = 1;
+        
+        value = s->reg_ticcnt[i];
         break;
     case RTCALM:
         value = s->reg_rtcalm;
@@ -386,21 +388,24 @@ static void exynos4210_rtc_write(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
     Exynos4210RTCState *s = (Exynos4210RTCState *)opaque;
-
+    
+    DPRINTF("write offset %llx, value %llu\n", offset, value);
+    unsigned i;
+    
+    
     switch (offset) {
-    case INTP:
-        if (value & INTP_ALM_ENABLE) {
-            qemu_irq_lower(s->alm_irq);
-            s->reg_intp &= (~INTP_ALM_ENABLE);
-        }
-        if (value & INTP_TICK_ENABLE) {
-            qemu_irq_lower(s->tick_irq);
-            s->reg_intp &= (~INTP_TICK_ENABLE);
-        }
-        break;
     case RTCCON:
         if (value & RTC_ENABLE) {
             exynos4210_rtc_update_freq(s, value);
+            
+            if (s->reg_ticcnt[0] & TICK_TIMER_ENABLE) {
+                uint32_t count = ((s->reg_ticcnt[0] & 0x7F) << 0x8) |
+                              (s->reg_ticcnt[1] & 0xFF) |
+                             ((s->reg_ticcnt[2] & 0x1FFFF) << 0xF);
+                ptimer_set_count(s->ptimer, count);                
+                ptimer_run(s->ptimer, 1);
+                DPRINTF("run tick timer\n");
+            }
         }
         if ((value & RTC_ENABLE) > (s->reg_rtccon & RTC_ENABLE)) {
             /* clock timer */
@@ -415,31 +420,29 @@ static void exynos4210_rtc_write(void *opaque, hwaddr offset,
             ptimer_stop(s->ptimer_1Hz);
             DPRINTF("stop all timers\n");
         }
-        if (value & RTC_ENABLE) {
-            if ((value & TICK_TIMER_ENABLE) >
-                (s->reg_rtccon & TICK_TIMER_ENABLE) &&
-                (s->reg_ticcnt)) {
-                ptimer_set_count(s->ptimer, s->reg_ticcnt);
+        s->reg_rtccon = value;
+        break;
+    case TICCNT_START ... TICCNT_END:
+        i = (offset - TICCNT_START) >> 2;
+        if (i == 1) i = 2;
+        if (i == 2) i = 1;
+        s->reg_ticcnt[i] = value;
+        
+        if (s->reg_rtccon & RTC_ENABLE) {
+            if (s->reg_ticcnt[0] & TICK_TIMER_ENABLE) {
+                uint32_t count = ((s->reg_ticcnt[0] & 0x7F) << 0x8) |
+                                  (s->reg_ticcnt[1] & 0xFF) |
+                                 ((s->reg_ticcnt[2] & 0x1FFFF) << 0xF);
+                DPRINTF("tick count = %ui\n", count);
+                ptimer_set_count(s->ptimer, count);                
                 ptimer_run(s->ptimer, 1);
                 DPRINTF("run tick timer\n");
             }
-            if ((value & TICK_TIMER_ENABLE) <
-                (s->reg_rtccon & TICK_TIMER_ENABLE)) {
+            else {
                 ptimer_stop(s->ptimer);
             }
         }
-        s->reg_rtccon = value;
         break;
-    case TICCNT:
-        if (value > TICNT_THRESHOLD) {
-            s->reg_ticcnt = value;
-        } else {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "exynos4210.rtc: bad TICNT value %u",
-                          (uint32_t)value);
-        }
-        break;
-
     case RTCALM:
         s->reg_rtcalm = value;
         break;
@@ -522,9 +525,10 @@ static void exynos4210_rtc_reset(DeviceState *d)
             s->current_tm.tm_year, s->current_tm.tm_mon, s->current_tm.tm_mday,
             s->current_tm.tm_hour, s->current_tm.tm_min, s->current_tm.tm_sec);
 
-    s->reg_intp = 0;
     s->reg_rtccon = 0;
-    s->reg_ticcnt = 0;
+    s->reg_ticcnt[0] = 0;
+    s->reg_ticcnt[1] = 0;
+    s->reg_ticcnt[2] = 0;
     s->reg_rtcalm = 0;
     s->reg_almsec = 0;
     s->reg_almmin = 0;
@@ -577,7 +581,7 @@ static void exynos4210_rtc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->reset = exynos4210_rtc_reset;
-    dc->vmsd = &vmstate_exynos4210_rtc_state;
+    //dc->vmsd = &vmstate_exynos4210_rtc_state;
 }
 
 static const TypeInfo exynos4210_rtc_info = {
