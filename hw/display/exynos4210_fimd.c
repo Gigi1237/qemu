@@ -30,8 +30,8 @@
 #include "qemu/bswap.h"
 
 /* Debug messages configuration */
-#define EXYNOS4210_FIMD_DEBUG              2
-#define EXYNOS4210_FIMD_MODE_TRACE         1
+#define EXYNOS4210_FIMD_DEBUG              0
+#define EXYNOS4210_FIMD_MODE_TRACE         0
 
 #if EXYNOS4210_FIMD_DEBUG == 0
     #define DPRINT_L1(fmt, args...)       do { } while (0)
