@@ -765,26 +765,6 @@ static uint64_t hp_prime_keymap[Q_KEY_CODE__MAX] = {
 } ;
 #undef GTK_FIX
 
-static int inc_magic(int val)
-{
-    switch (val)
-    {
-        case 2:
-        case 8 ... 14:
-            return val + 1;
-        case 3:
-            return 6;
-        case 6:
-            return 8;
-        case 15:
-        default:
-            return 2;
-            
-    }
-}
-
-static int VV = 2;
-
 static void hp_prime_keyboard_event(DeviceState *dev, QemuConsole *src,
                                InputEvent *evt)
 {
