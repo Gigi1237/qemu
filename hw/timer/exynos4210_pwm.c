@@ -30,9 +30,9 @@
 
 #include "hw/arm/exynos4210.h"
 
-//#define DEBUG_PWM
+#define DEBUG_PWM 0
 
-#ifdef DEBUG_PWM
+#if DEBUG_PWM
 #define DPRINTF(fmt, ...) \
         do { fprintf(stdout, "PWM: [%24s:%5d] " fmt, __func__, __LINE__, \
                 ## __VA_ARGS__); } while (0)
@@ -67,7 +67,7 @@
 #define     TCNTO(x)    (0xC * (x) + 2)
 
 #define GET_PRESCALER(reg, x) (((reg) & (0xFF << (8 * (x)))) >> 8 * (x))
-#define GET_DIVIDER(reg, x) (1 << (((reg) & (0xF << (4 * (x)))) >> (4 * (x))))
+#define GET_DIVIDER(reg, x) (1 << ((((reg) & (0xF << (4 * (x)))) >> (4 * (x))) + 1)) 
 
 /*
  * Attention! Timer4 doesn't have OUTPUT_INVERTER,
@@ -155,11 +155,11 @@ static void exynos4210_pwm_update_freq(Exynos4210PWMState *s, uint32_t id)
     uint32_t freq;
     freq = s->timer[id].freq;
     if (id > 1) {
-        s->timer[id].freq = 24000000 /
+        s->timer[id].freq = 66000000 /
         ((GET_PRESCALER(s->reg_tcfg[0], 1) + 1) *
                 (GET_DIVIDER(s->reg_tcfg[1], id)));
     } else {
-        s->timer[id].freq = 24000000 /
+        s->timer[id].freq = 66000000 /
         ((GET_PRESCALER(s->reg_tcfg[0], 0) + 1) *
                 (GET_DIVIDER(s->reg_tcfg[1], id)));
     }
@@ -219,7 +219,8 @@ static uint64_t exynos4210_pwm_read(void *opaque, hwaddr offset,
     Exynos4210PWMState *s = (Exynos4210PWMState *)opaque;
     uint32_t value = 0;
     int index;
-
+    DPRINTF("read reg: 0x%04llx\n",offset);
+    
     switch (offset) {
     case TCFG0: case TCFG1:
         index = (offset - TCFG0) >> 2;
@@ -272,6 +273,8 @@ static void exynos4210_pwm_write(void *opaque, hwaddr offset,
     uint32_t new_val;
     int i;
 
+    DPRINTF("write reg: %04llx val: %llx\n",offset,value);
+    
     switch (offset) {
     case TCFG0: case TCFG1:
         index = (offset - TCFG0) >> 2;
