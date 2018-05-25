@@ -646,7 +646,7 @@ static void s3c2416_gpio_write(void *opaque, hwaddr offset,
 
         // EINTPEND
     case 0xA8:
-        s->EINTPEND = val;
+        s->EINTPEND &= ~val;
         break;
 
         // DSC0

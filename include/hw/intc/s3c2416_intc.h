@@ -95,6 +95,8 @@ typedef struct {
     uint32_t SUBSRCPND;
     uint32_t INTSUBMSK;
 
+    uint32_t last_int;
+    
     qemu_irq irq;
     qemu_irq fiq;
 } S3C2416_intc_state;

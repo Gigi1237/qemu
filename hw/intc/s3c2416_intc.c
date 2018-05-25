@@ -30,33 +30,48 @@ static interrupt_info int_info_array[INT_END] =
     [SUBINT_TXD0] = { 0, 0x10000000, 28, 0x2 },
     [SUBINT_ERR0] = { 0, 0x10000000, 28, 0x4 },
 
-    [INT_IIC0] = { 0, 0x8000000, 27, 0 },
+    [INT_IIC0]    = { 0, 0x8000000, 27, 0 },
 	
-    [INT_LCD] = { 0, 0x10000, 16, 0 },
+    [INT_LCD]     = { 0, 0x10000, 16, 0 },
+    [SUBINT_LCD4] = { 0, 0x10000, 16, 0x20000 },
+    [SUBINT_LCD3] = { 0, 0x10000, 16, 0x10000 },
+    [SUBINT_LCD2] = { 0, 0x10000, 16, 0x8000 },
 
-    [INT_RTC] = { 0, 0x40000000, 30, 0 },
+    [INT_RTC]     = { 0, 0x40000000, 30, 0 },
 
-    [INT_TICK] = { 0, 0x100, 8, 0 },
+    [INT_TICK]    = { 0, 0x100, 8, 0 },
 
-    [INT_TIMER0] = { 0, 0x400, 10, 0 },
-    [INT_TIMER1] = { 0, 0x800, 11, 0 },
-    [INT_TIMER2] = { 0, 0x1000, 12, 0 },
-    [INT_TIMER3] = { 0, 0x2000, 13, 0 },
-    [INT_TIMER4] = { 0, 0x4000, 14, 0 },
+    [INT_TIMER0]  = { 0, 0x400, 10, 0 },
+    [INT_TIMER1]  = { 0, 0x800, 11, 0 },
+    [INT_TIMER2]  = { 0, 0x1000, 12, 0 },
+    [INT_TIMER3]  = { 0, 0x2000, 13, 0 },
+    [INT_TIMER4]  = { 0, 0x4000, 14, 0 },
     
-    [EINT8_15] = { 0, 0x20, 5, 0},
-    [EINT4_7] = {0, 0x10, 4, 0},
-    [EINT3] = {0, 0x8, 3, 0},
-    [EINT2] = {0, 0x4, 2, 0},
-    [EINT1] = {0, 0x2, 1, 0},
-    [EINT0] = {0, 0x1, 0, 0}
+    [EINT8_15]    = { 0, 0x20, 5, 0},
+    [EINT4_7]     = {0, 0x10, 4, 0},
+    [EINT3]       = {0, 0x8, 3, 0},
+    [EINT2]       = {0, 0x4, 2, 0},
+    [EINT1]       = {0, 0x2, 1, 0},
+    [EINT0]       = {0, 0x1, 0, 0}
 };
 static int s3c2416_intc_get_subint_id(int subint)
 {
     int i;
     for (i = 0; i < INT_END; i++)
     {
-        if (int_info_array[i].subint == subint)
+        if (int_info_array[i].subint == (1 << subint))
+            return i;
+    }
+    return 0xFFFFFF;
+}
+
+static int s3c2416_get_int_from_val(uint32_t value, uint8_t grp)
+{
+    int i;
+    for (i = 0; i < INT_END; i++)
+    {
+
+        if (int_info_array[i].grp == grp && int_info_array[i].value == value)
             return i;
     }
     return 0xFFFFFF;
@@ -100,8 +115,8 @@ static void S3C2416_intc_update_subint(S3C2416_intc_state* s)
     int j;
     for (j = 0; j < 32; j++)
     {
-        if (s->SUBSRCPND & (1u << j) & ~(s->INTSUBMSK & (1u << j))) {
-            int n = s3c2416_intc_get_subint_id(1u<<j);
+        if ((s->SUBSRCPND & (1u << j)) & ~(s->INTSUBMSK & (1u << j))) {
+            int n = s3c2416_intc_get_subint_id(j);
             int grp = s3c2416_intc_get_grp(n);
             s->SRCPND[grp] |= s3c2416_intc_get_int(n);
         }
@@ -110,6 +125,15 @@ static void S3C2416_intc_update_subint(S3C2416_intc_state* s)
 static int S3C2416_intc_get_next_interrupt(S3C2416_intc_state* s)
 {
     int i,j;
+    
+    // FIQ First
+    for (i = 0; i < 2; i++)
+    {
+        if (s->SRCPND[i] & s->INTMOD[i]) {
+            return s3c2416_get_int_from_val(s->INTMOD[i], i);
+        }
+    }
+    
     for (i = 0; i < 2; i++)
     {
         for (j = 0; j < 32; j++)
@@ -123,7 +147,25 @@ static int S3C2416_intc_get_next_interrupt(S3C2416_intc_state* s)
 }
 
 static void S3C2416_intc_update(S3C2416_intc_state* s)
-{
+{   
+    // Clear INTOFFSET
+    if (s->last_int != INT_END)
+    {
+        uint32_t grp = s3c2416_intc_get_grp(s->last_int);
+        uint32_t val = s3c2416_intc_get_int(s->last_int);
+        uint32_t subint = s3c2416_intc_get_subsource(s->last_int);
+        if ((s->INTPND[grp] & val) | (s->SRCPND[grp] & val) | (s->SUBSRCPND & subint))
+            return;
+        
+        s->INTOFFSET[grp] = 0;
+        s->last_int = INT_END;
+        
+        if (s->INTMOD[grp] & val)
+            qemu_set_irq(s->fiq, 0);
+        else
+            qemu_set_irq(s->irq, 0);
+    }
+    
     S3C2416_intc_update_subint(s);
     int irq = S3C2416_intc_get_next_interrupt(s);
 
@@ -132,14 +174,12 @@ static void S3C2416_intc_update(S3C2416_intc_state* s)
     if (irq == -1) {
         s->INTPND[0] = 0;
         s->INTPND[1] = 0;
-        qemu_set_irq(s->irq, 0);
-        qemu_set_irq(s->fiq, 0);
-        DPRINT("no interrupt\n")
         return;
     }
 
     int grp = s3c2416_intc_get_grp(irq);
     int n = s3c2416_intc_get_int(irq);
+    s->last_int = irq;
 
     DPRINT("Interrupt called! grp: %08x, n: %08x, irq: %08x\n", grp, n, irq)
 
@@ -162,7 +202,6 @@ static bool S3C2416_intc_has_subsource(int n)
 
 static void S3C2416_intc_set(void *opaque, int n, int level)
 {
-
     S3C2416_intc_state *s = (S3C2416_intc_state*)opaque;
 
     int grp, irq;
@@ -176,8 +215,6 @@ static void S3C2416_intc_set(void *opaque, int n, int level)
         int subsrc = s3c2416_intc_get_subsource(n);
             if (level)
                 s->SUBSRCPND |= subsrc;
-            else
-                s->SUBSRCPND &= ~subsrc;
 
         // Subsource is masked
         if (s->INTSUBMSK & subsrc) {
@@ -192,8 +229,6 @@ static void S3C2416_intc_set(void *opaque, int n, int level)
 
     if (level)
         s->SRCPND[grp] |= irq;
-    else
-        s->SRCPND[grp] &= irq;
 
     S3C2416_intc_update(s);
 }
@@ -246,6 +281,7 @@ static uint64_t S3C2416_intc_read(void *opaque, hwaddr offset,
     }
     return 0;
 }
+    
 
 static void S3C2416_intc_write(void *opaque, hwaddr offset,
     uint64_t val, unsigned size)
@@ -326,6 +362,7 @@ static void S3C2416_intc_init(Object *obj)
     s->INTMSK[0]=0xffffffff;
     s->INTMSK[1]=0xffffffff;
     s->INTSUBMSK=0xffffffff;
+    s->last_int = INT_END;
 };
 static void S3C2416_intc_reset(DeviceState *dev)
 {
@@ -334,6 +371,7 @@ static void S3C2416_intc_reset(DeviceState *dev)
     s->INTMSK[0]=0xffffffff;
     s->INTMSK[1]=0xffffffff;
     s->INTSUBMSK=0xffffffff;
+    s->last_int = INT_END;
 };
 static void S3C2416_intc_class_init(ObjectClass *klass, void *data)
 {
