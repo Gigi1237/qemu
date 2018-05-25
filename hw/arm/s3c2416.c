@@ -95,7 +95,6 @@ static void prime_init(MachineState *machine)
     };
 
     qemu_irq rtc_irq = qdev_get_gpio_in(dev, INT_RTC);
-
     qemu_irq tick_irq = qdev_get_gpio_in(dev, INT_TICK);
 
     qemu_irq rxd0_sub = qdev_get_gpio_in(dev, SUBINT_RXD0);

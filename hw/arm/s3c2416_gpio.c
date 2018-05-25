@@ -797,23 +797,6 @@ static void hp_prime_keyboard_event(DeviceState *dev, QemuConsole *src,
 
     if (qcode >= Q_KEY_CODE__MAX)
         return;
-
- 
-    if (qcode == Q_KEY_CODE_F10 && key->down) {
-        
-        VV = inc_magic(VV);
-        printf("NEW interrupt value: %i \n", VV);
-    }
-    
-    if (qcode == Q_KEY_CODE_F11 && key->down) {
-        if (VV < 4) {
-            qemu_irq_raise(s->irq[VV]);
-        } else {
-            s->EINTPEND ^= (1 << VV);
-            qemu_irq_raise(s->irq[(VV / 8) + 4]);
-        }
-        printf("Raised IRQ %i\n", VV);
-    }
     
     if (key->down)
         s->keyboard |= hp_prime_keymap[qcode];
