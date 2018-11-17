@@ -91,12 +91,15 @@ typedef struct {
     uint64_t keyboard;
 } s3c2416_gpio_state;
 
+static void S3C2416_gpio_intc_set(void *opaque, int n, int level);
+
 static void s3c2416_gpio_update_keyboard(s3c2416_gpio_state *s) {
     s->GPGDAT = 0;
     int i;
     for (i = 0; i < 8; i++) {
-        if (s->GPDDAT & (1 << i)) {
-            s->GPGDAT |= s->keyboard >> (8*i);
+        if ((s->GPDDAT & (1 << i)) &&
+            (((s->GPDCON >> (i*2)) & 0x3) == 0x01)) {
+            s->GPGDAT |= (s->keyboard >> (8*i)) & 0xFF;
         }
     }
 }
@@ -778,10 +781,17 @@ static void hp_prime_keyboard_event(DeviceState *dev, QemuConsole *src,
     if (qcode >= Q_KEY_CODE__MAX)
         return;
     
-    if (key->down)
+    if (key->down) {
         s->keyboard |= hp_prime_keymap[qcode];
-    else
+        for (int i =0; i < 8; i++)
+        {
+            if ((s->keyboard >> (i*8)) & 0xFF) {
+                S3C2416_gpio_intc_set(s, i + 8, 1);
+            }
+        }
+    } else {
         s->keyboard &= ~hp_prime_keymap[qcode];
+    }
 }
 
 static QemuInputHandler hp_prime_keyboard_handler = {
@@ -795,15 +805,15 @@ static void S3C2416_gpio_intc_set(void *opaque, int n, int level)
     s3c2416_gpio_state *s = S3C2416_GPIO(opaque);
     
    uint32_t irq = 1 << n;
-    if (n < 4)
+    if (n < 4) {
+        qemu_set_irq(s->irq[n], level);
         return;
+    }
     
     if (level)
         s->EINTPEND |= irq;
-    else
-        s->EINTPEND &= irq;
     
-    uint32_t set = n < 8 ? 0 : 1;
+    uint32_t set = n < 8 ? 4 : 5;
     
     if (!(s->EINTMASK & irq))
         qemu_set_irq(s->irq[set], level);
@@ -823,7 +833,7 @@ static void s3c2416_gpio_init(Object *obj)
     memory_region_init_io(&s->iomem, OBJECT(s), &s3c2416_gpio_ops, s, "s3c2416_gpio", 0x00001000);
     sysbus_init_mmio(sbd, &s->iomem);    
     
-    qdev_init_gpio_in(DEVICE(obj), S3C2416_gpio_intc_set, 16);
+    //qdev_init_gpio_in(DEVICE(obj), S3C2416_gpio_intc_set, 16);
     sysbus_init_irq(sbd, &s->irq[0]);
     sysbus_init_irq(sbd, &s->irq[1]);
     sysbus_init_irq(sbd, &s->irq[2]);
