@@ -82,6 +82,8 @@ enum InterruptId
     INT_END
 };
 
+typedef enum InterruptId int_id;
+
 typedef struct {
     SysBusDevice parent_obj;
 
@@ -94,6 +96,9 @@ typedef struct {
 
     uint32_t SUBSRCPND;
     uint32_t INTSUBMSK;
+    
+    uint32_t PRIORITY_MODE[2];
+    uint8_t PRIORITY_UPDATE[2];
 
     uint32_t last_int;
     
