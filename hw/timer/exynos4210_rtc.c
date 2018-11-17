@@ -80,7 +80,7 @@
 
 #define     ALARM_INT_ENABLE    0x0040
 
-#define     RTC_BASE_FREQ       32768
+#define     RTC_BASE_FREQ       0x8000
 
 #define TYPE_EXYNOS4210_RTC "exynos4210.rtc"
 #define EXYNOS4210_RTC(obj) \
@@ -113,7 +113,8 @@ typedef struct Exynos4210RTCState {
     struct tm   current_tm;     /* current time */
 } Exynos4210RTCState;
 
-#define TICCKSEL(value) ((value & (0x0F << 4)) >> 4)
+#define TICCKSEL2(value) ((value & (0x0F << 5)) >> 5)
+#define TICCKSEL1(value) ((value & (0x01 << 4)) >> 4)
 
 ///*** VMState ***/
 //static const VMStateDescription vmstate_exynos4210_rtc_state = {
@@ -192,14 +193,18 @@ static void check_alarm_raise(Exynos4210RTCState *s)
  * Parameters:
  *     reg_value - current RTCCON register or his new value
  */
-static void exynos4210_rtc_update_freq(Exynos4210RTCState *s,
-                                       uint32_t reg_value)
+static void exynos4210_rtc_update_freq(Exynos4210RTCState *s)
 {
     uint32_t freq;
 
     freq = s->freq;
     /* set frequncy for time generator */
-    s->freq = RTC_BASE_FREQ / (1 << TICCKSEL(reg_value));
+    if (TICCKSEL1(s->reg_rtccon)) {
+        s->freq = RTC_BASE_FREQ;
+    } else {
+        s->freq = RTC_BASE_FREQ / (1 << TICCKSEL2(s->reg_rtccon));
+    }
+    DPRINTF("AAfreq=%dHz\n", s->freq);
 
     if (freq != s->freq) {
         ptimer_set_freq(s->ptimer, s->freq);
@@ -389,24 +394,22 @@ static void exynos4210_rtc_write(void *opaque, hwaddr offset,
 {
     Exynos4210RTCState *s = (Exynos4210RTCState *)opaque;
     
-    DPRINTF("write offset %llx, value %llu\n", offset, value);
+    printf("write offset %llx, value %llu\n", offset, value);
     unsigned i;
     
     
     switch (offset) {
     case RTCCON:
-        if (value & RTC_ENABLE) {
-            exynos4210_rtc_update_freq(s, value);
-            
-            if (s->reg_ticcnt[0] & TICK_TIMER_ENABLE) {
-                uint32_t count = ((s->reg_ticcnt[0] & 0x7F) << 0x8) |
-                              (s->reg_ticcnt[1] & 0xFF) |
-                             ((s->reg_ticcnt[2] & 0x1FFFF) << 0xF);
-                ptimer_set_count(s->ptimer, count);                
-                ptimer_run(s->ptimer, 1);
-                DPRINTF("run tick timer\n");
-            }
+        if (s->reg_ticcnt[0] & TICK_TIMER_ENABLE) {
+            exynos4210_rtc_update_freq(s);
+            uint32_t count = ((s->reg_ticcnt[0] & 0x7F) << 0x8) |
+                          (s->reg_ticcnt[1] & 0xFF) |
+                         ((s->reg_ticcnt[2] & 0x1FFFF) << 0xF);
+            ptimer_set_count(s->ptimer, count);                
+            ptimer_run(s->ptimer, 1);
+            DPRINTF("run tick timer\n");
         }
+        
         if ((value & RTC_ENABLE) > (s->reg_rtccon & RTC_ENABLE)) {
             /* clock timer */
             ptimer_set_count(s->ptimer_1Hz, RTC_BASE_FREQ);
@@ -427,20 +430,15 @@ static void exynos4210_rtc_write(void *opaque, hwaddr offset,
         if (i == 1) i = 2;
         if (i == 2) i = 1;
         s->reg_ticcnt[i] = value;
-        
-        if (s->reg_rtccon & RTC_ENABLE) {
-            if (s->reg_ticcnt[0] & TICK_TIMER_ENABLE) {
-                uint32_t count = ((s->reg_ticcnt[0] & 0x7F) << 0x8) |
-                                  (s->reg_ticcnt[1] & 0xFF) |
-                                 ((s->reg_ticcnt[2] & 0x1FFFF) << 0xF);
-                DPRINTF("tick count = %ui\n", count);
-                ptimer_set_count(s->ptimer, count);                
-                ptimer_run(s->ptimer, 1);
-                DPRINTF("run tick timer\n");
-            }
-            else {
-                ptimer_stop(s->ptimer);
-            }
+        if (s->reg_ticcnt[0] & TICK_TIMER_ENABLE) {
+            exynos4210_rtc_update_freq(s);
+            uint32_t count = ((s->reg_ticcnt[0] & 0x7F) << 0x8) |
+                              (s->reg_ticcnt[1] & 0xFF) |
+                             ((s->reg_ticcnt[2] & 0x1FFFF) << 0xF);
+            DPRINTF("tick count = %ui\n", count);
+            ptimer_set_count(s->ptimer, count);                
+            ptimer_run(s->ptimer, 1);
+            DPRINTF("run tick timer\n");
         }
         break;
     case RTCALM:
@@ -539,7 +537,7 @@ static void exynos4210_rtc_reset(DeviceState *d)
 
     s->reg_curticcnt = 0;
 
-    exynos4210_rtc_update_freq(s, s->reg_rtccon);
+    exynos4210_rtc_update_freq(s);
     ptimer_stop(s->ptimer);
     ptimer_stop(s->ptimer_1Hz);
 }
@@ -562,7 +560,7 @@ static void exynos4210_rtc_init(Object *obj)
     bh = qemu_bh_new(exynos4210_rtc_tick, s);
     s->ptimer = ptimer_init(bh, PTIMER_POLICY_DEFAULT);
     ptimer_set_freq(s->ptimer, RTC_BASE_FREQ);
-    exynos4210_rtc_update_freq(s, 0);
+    exynos4210_rtc_update_freq(s);
 
     bh = qemu_bh_new(exynos4210_rtc_1Hz_tick, s);
     s->ptimer_1Hz = ptimer_init(bh, PTIMER_POLICY_DEFAULT);
